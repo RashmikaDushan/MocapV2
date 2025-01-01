@@ -4,8 +4,11 @@ import cv2
 import numpy as np
 import os
 import glob
+from dotenv import load_dotenv
  
-cam_images_folder_name = 'cam_1' # Folder name containing images
+load_dotenv()
+
+cam_images_folder_name = os.getenv("CHECKERBOARD_FOLDERNAME") # Folder name containing images
 cam_images_folder_name_calibrated = f'{cam_images_folder_name}_c'
 
 # Defining the dimensions of checkerboard
@@ -52,11 +55,19 @@ for fname in images:
         img = cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
      
     cv2.imshow('img',img)
-    cv2.waitKey(0)
+
+    # Wait for a key press
+    key = cv2.waitKey(0) & 0xFF
+
+    # If 'q' is pressed, exit
+    if key == ord('q'):  # 'q' key
+        print("Exiting...")
+        cv2.destroyAllWindows()
+        quit()
     
-    new_frame_name = cam_images_folder_name_calibrated + '/' + os.path.basename(fname)
+    # new_frame_name = cam_images_folder_name_calibrated + '/' + os.path.basename(fname)
     # print(new_frame_name)
-    cv2.imwrite(new_frame_name, img)
+    # cv2.imwrite(new_frame_name, img)
 
  
 cv2.destroyAllWindows()

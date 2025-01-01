@@ -1,6 +1,6 @@
 import cv2 as cv
-import numpy as np
 import time
+import platform
 
 class Camera:
 
@@ -15,7 +15,10 @@ class Camera:
         self.cameras = []
         self.num_cameras = len(self.working_camera_ids)
         for camera_id in self.working_camera_ids:
-            camera = cv.VideoCapture(camera_id, cv.CAP_DSHOW)
+            if platform.system() == 'Windows':
+                camera = cv.VideoCapture(camera_id, cv.CAP_DSHOW)
+            else:
+                camera = cv.VideoCapture(camera_id)
             if self.SUPPORT_CUSTOM_CONFIG:
                 camera.set(cv.CAP_PROP_FRAME_WIDTH, self._RESOLUTION[resolution][0]) ## some cameras dont support custom resolutions,gain and exposure
                 camera.set(cv.CAP_PROP_FRAME_HEIGHT, self._RESOLUTION[resolution][1])
@@ -57,15 +60,21 @@ class Camera:
                 camera.set(cv.CAP_PROP_GAIN, gain)
     
     @staticmethod
-    def list_ports(): ## needs to be debug - the non existing ports give errors
-        non_working_ports = []
+    def list_ports(): ## need to debug - the non existing ports give errors
+        non_working_ports = [1,3,4,5,6,7,8,9]
         working_ports = []
         dev_port = 0
         max_ports_to_check = 10
         
         while dev_port < max_ports_to_check:
+            if dev_port in non_working_ports:
+                dev_port += 1
+                continue
             try:
-                camera = cv.VideoCapture(dev_port, cv.CAP_DSHOW)
+                if platform.system() == 'Windows':
+                    camera = cv.VideoCapture(dev_port, cv.CAP_DSHOW)
+                else:
+                    camera = cv.VideoCapture(dev_port)
                 if not camera.isOpened():
                     non_working_ports.append(dev_port)
                     print(f"Port {dev_port} is not working.")

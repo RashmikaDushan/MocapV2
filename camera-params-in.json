@@ -8,7 +8,7 @@
     "distortion_coef": [
       2.96120482e-2, -5.51805242e-1, -2.94624122e-4, -1.06951249e-4, 3.18168065
     ],
-    "rotation": 1
+    "rotation": 0
   },
   {
     "intrinsic_matrix": [
@@ -19,7 +19,7 @@
     "distortion_coef": [
       2.96120482e-2, -5.51805242e-1, -2.94624122e-4, -1.06951249e-4, 3.18168065
     ],
-    "rotation": 1
+    "rotation": 0
   },
   {
     "intrinsic_matrix": [
@@ -30,6 +30,6 @@
     "distortion_coef": [
       2.96120482e-2, -5.51805242e-1, -2.94624122e-4, -1.06951249e-4, 3.18168065
     ],
-    "rotation": 1
+    "rotation": 0
   }
 ]

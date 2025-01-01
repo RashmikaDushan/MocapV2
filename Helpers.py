@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import cv2 as cv
 from Singleton import Singleton
 import json
-from CameraWrapperSimulated import Camera
+from CameraWrapper import Camera
 import numpy as np
 from scipy import linalg, optimize
 import time
@@ -30,6 +30,10 @@ class Cameras:
         self.is_triangulating_points = False
 
         self.camera_poses = None
+
+        self.image_points = []
+
+        self.over_websockets = True
 
         # self.is_locating_objects = False
 
@@ -77,13 +81,15 @@ class Cameras:
 
 #------------------------ Capturing points ------------------------#
         if (self.is_capturing_points):
-            image_points_all_cameras = []
+            image_points_all_cameras = [] # format [[camera1_point1, camera1_point2, ...], [camera2_point1, camera2_point2, ...], ...] where camera1_point1 is [x, y]
             for i in range(0, self.num_cameras):
                 frames[i], single_camera_image_points = self._find_dot(frames[i])
                 image_points_all_cameras.append(single_camera_image_points)
+
+            self.image_points = image_points_all_cameras
             
             if (any(np.all(point[0] != [None,None]) for point in image_points_all_cameras)): # if there are image points
-                if not self.is_triangulating_points:
+                if not self.is_triangulating_points and self.over_websockets:
                     self.socketio.emit("image-points", [x[0] for x in image_points_all_cameras]) # send the image points to the frontend
 
 #------------------------ Triangulating points ------------------------#
@@ -121,13 +127,13 @@ class Cameras:
                         for filtered_object in filtered_objects:
                             filtered_object["vel"] = filtered_object["vel"].tolist()
                             filtered_object["pos"] = filtered_object["pos"].tolist()
-                    
-                    self.socketio.emit("object-points", {
-                        "object_points": object_points.tolist(), 
-                        "errors": errors.tolist(), 
-                        "objects": [{k:(v.tolist() if isinstance(v, np.ndarray) else v) for (k,v) in object.items()} for object in objects], 
-                        "filtered_objects": filtered_objects
-                    })
+                    if self.over_websockets:
+                        self.socketio.emit("object-points", {
+                            "object_points": object_points.tolist(), 
+                            "errors": errors.tolist(), 
+                            "objects": [{k:(v.tolist() if isinstance(v, np.ndarray) else v) for (k,v) in object.items()} for object in objects], 
+                            "filtered_objects": filtered_objects
+                        })
         return frames
 
     def _find_dot(self, img):
@@ -231,7 +237,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
     return errors.mean()
 
 
-def bundle_adjustment(image_points, camera_poses, socketio):
+def bundle_adjustment(image_points, camera_poses):
     cameras = Cameras.instance()
 
     def params_to_camera_poses(params):
@@ -261,7 +267,6 @@ def bundle_adjustment(image_points, camera_poses, socketio):
         object_points = triangulate_points(image_points, camera_poses)
         errors = calculate_reprojection_errors(image_points, object_points, camera_poses)
         errors = errors.astype(np.float32)
-        socketio.emit("camera-pose", {"camera_poses": camera_pose_to_serializable(camera_poses)})
         
         return errors
 
