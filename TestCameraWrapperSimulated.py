@@ -1,4 +1,4 @@
-from CameraSimulation import Camera
+from CameraWrapperSimulated import Camera
 import cv2 as cv
 import time
 
