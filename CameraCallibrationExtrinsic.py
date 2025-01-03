@@ -205,5 +205,5 @@ def calculate_extrinsics():
 
 if __name__ == "__main__":
     get_images()
-    capture_points()
+    capture_points()    
     calculate_extrinsics()

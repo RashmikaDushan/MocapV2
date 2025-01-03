@@ -2,5 +2,4 @@
 .DS_Store
 test.py
 __pycache__/
-__pycache__/Helpers.cpython-312.pyc
-__pycache__/CameraWrapperSimulated.cpython-312.pyc
+.venv/
