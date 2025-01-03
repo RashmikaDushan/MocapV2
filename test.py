@@ -1,32 +1,29 @@
-import cv2
+import os
+import cv2 as cv
+import glob
+import numpy as np
 
-# Initialize the webcam (default camera is usually at index 0)
-cap = cv2.VideoCapture(1)
+images = []
 
-# Check if the webcam is opened correctly
-if not cap.isOpened():
-    print("Error: Could not access the webcam.")
-    exit()
+img_folder_paths = sorted([f"extrinsics/{i}" for i in os.listdir("extrinsics") if not i.startswith('.')])
+print(img_folder_paths)
 
-print("Press 'q' to exit.")
+for img_folder_path in img_folder_paths:
+    image_names = sorted(glob.glob(f'./{img_folder_path}/*.jpg'))
+    print(image_names)
+    imgs = []
+    for fname in image_names:
+        img = cv.imread(fname)
+        # cv.imshow(f'{fname}',img)
+        imgs.append(img)
+        # key = cv.waitKey(0) & 0xFF
+        # if key == ord('q'):
+        #     print("Exiting...")
+        #     cv.destroyAllWindows()
+        #     quit()
+    images.append(imgs)
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-
-    # If the frame is not captured correctly, break the loop
-    if not ret:
-        print("Error: Failed to capture frame.")
-        break
-
-    # Display the resulting frame
-    cv2.imshow('Webcam Feed', frame)
-
-    # Wait for 1 ms and check if 'q' is pressed to exit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        print("Exiting...")
-        break
-
-# Release the webcam and close the window
-cap.release()
-cv2.destroyAllWindows()
+images = np.array(images)
+print(images.shape)
+images = images.swapaxes(0,1)
+print(images.shape)

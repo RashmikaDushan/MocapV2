@@ -1,7 +1,8 @@
 import cv2 as cv
 import time
 import os
-from dotenv import load_dotenv
+import glob
+import numpy as np
 
 class Camera:
 
@@ -21,25 +22,32 @@ class Camera:
         :param exposure: Exposure value (not functional in simulation)
         """
 
-        load_dotenv()
 
-        self.img_paths = [
-            os.getenv("IMG_PATH_L"),
-            os.getenv("IMG_PATH_R")
-        ]
+        self.images = []
 
-        self.num_cameras = 2
-        self.working_camera_ids = [0, 1]
+        img_folder_paths = sorted([f"extrinsics/{i}" for i in os.listdir("extrinsics") if not i.startswith('.')])
+        print(img_folder_paths)
 
-        for path in self.img_paths:
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Image path {path} does not exist.")
-            
-        self.images = [cv.imread(img_path) for img_path in self.img_paths]
+        for img_folder_path in img_folder_paths:
+            image_names = sorted(glob.glob(f'./{img_folder_path}/*.jpg'))
+            print(image_names)
+            imgs = []
+            for fname in image_names:
+                img = cv.imread(fname)
+                imgs.append(img)
+            self.images.append(imgs)
 
-        # Resize images to match the resolution
-        for i in range(len(self.images)):
-            self.images[i] = cv.resize(self.images[i], (640, 480))
+        self.images = np.array(self.images)
+        self.images = self.images.swapaxes(0,1)
+        print(self.images.shape)
+
+        self.frame_number = 0
+
+        self.num_cameras = 6
+
+        # # Resize images to match the resolution
+        # for i in range(len(self.images)):
+        #     self.images[i] = cv.resize(self.images[i], (640, 480))
 
         self.fps = fps
         self.resolution = self._RESOLUTION[resolution]
@@ -64,11 +72,10 @@ class Camera:
         """
         imgs = []
         ts = [1,1] # Placeholder
-        del self.images
-        self.images = [cv.imread(img_path) for img_path in self.img_paths]
-        for i in range(len(self.images)):
-            self.images[i] = cv.resize(self.images[i], self.resolution)
-        imgs = self.images
+        imgs = self.images[self.frame_number]
+        self.frame_number = (self.frame_number+1)%len(self.images)
+        # for i in range(len(imgs)):
+        #     imgs[i] = cv.resize(imgs[i], self.resolution)
         if timestamp:
             return imgs, ts
         else:

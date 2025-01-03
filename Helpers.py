@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import cv2 as cv
 from Singleton import Singleton
 import json
-from CameraWrapper import Camera
+from CameraWrapperSimulated import Camera
 import numpy as np
 from scipy import linalg, optimize
 import time
