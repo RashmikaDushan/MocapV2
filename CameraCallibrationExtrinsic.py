@@ -1,6 +1,4 @@
-from Helpers import Cameras
 import cv2 as cv
-import time
 import numpy as np
 from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment
 import os
@@ -8,10 +6,11 @@ import glob
 import json
 from dotenv import load_dotenv
 
-image_points = [] # format [[timestamp1], [timestamp2], ...] -> timestamp1 = [camera1_points, camera2_points, ...]
+image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestamp1 = [timestamp1, timestamp2, ...]
 images = []
 image_count = 0
 camera_count = 0
+global_camera_poses = []
 
 load_dotenv()
 filename = os.getenv("CAMERA_PARAMS_IN")
@@ -138,7 +137,9 @@ def calculate_extrinsics():
     global image_points
     global camera_params
     global camera_count
+    global global_camera_poses
 
+    # first camera pose - other cameras transformations will be calculated relative to this
     camera_poses = [{
         "R": np.eye(3),
         "t": np.array([[0],[0],[0]], dtype=np.float32)
@@ -148,8 +149,8 @@ def calculate_extrinsics():
         camera2_image_points = image_points[camera_i+1]
         camera1_image_points = np.array(camera1_image_points, dtype=np.float32)
         camera2_image_points = np.array(camera2_image_points, dtype=np.float32)
-        print("Camera 1 image points:", camera1_image_points)
-        print("Camera 2 image points:", camera2_image_points)
+        # print("Camera 1 image points:", camera1_image_points)
+        # print("Camera 2 image points:", camera2_image_points)
 
         F, _ = cv.findFundamentalMat(camera1_image_points, camera2_image_points, cv.FM_RANSAC, 1, 0.99999)
         # E = cv.sfm.essentialFromFundamental(F, cameras.get_camera_params(0)["intrinsic_matrix"], cameras.get_camera_params(1)["intrinsic_matrix"])
@@ -158,9 +159,9 @@ def calculate_extrinsics():
         K1 = camera_params[0]["intrinsic_matrix"]  # Intrinsic matrix for camera 1
         K2 = camera_params[1]["intrinsic_matrix"]  # Intrinsic matrix for camera 2
 
-        print("K1 shape", np.shape(K1))
-        print("K2 shape", np.shape(K2))
-        print("F shape", np.shape(F))
+        # print("K1 shape", np.shape(K1))
+        # print("K2 shape", np.shape(K2))
+        # print("F shape", np.shape(F))
 
         E = np.transpose(K2) @ F @ K1
 
@@ -172,15 +173,15 @@ def calculate_extrinsics():
         possible_ts = [t, -t, t, -t]   # 4 possible translation directions
 
         # Example of using R and t for further computations
-        print("Possible Rotations:", possible_Rs)
-        print("Possible Translations:", possible_ts)
+        # print("Possible Rotations:", possible_Rs)
+        # print("Possible Translations:", possible_ts)
 
         R = None
         t = None
         max_points_infront_of_camera = 0
         for i in range(0, 4):
-            object_points = triangulate_points(np.hstack([np.expand_dims(camera1_image_points, axis=1), np.expand_dims(camera2_image_points, axis=1)]), np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]]))
-            object_points_camera_coordinate_frame = np.array([possible_Rs[i].T @ object_point for object_point in object_points])
+            object_points = triangulate_points(np.hstack([np.expand_dims(camera1_image_points, axis=1), np.expand_dims(camera2_image_points, axis=1)]), np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]])) # find exact location of the points
+            object_points_camera_coordinate_frame = np.array([possible_Rs[i].T @ object_point for object_point in object_points]) # transform the points to the camera coordinate frame
 
             points_infront_of_camera = np.sum(object_points[:,2] > 0) + np.sum(object_points_camera_coordinate_frame[:,2] > 0)
 
@@ -189,9 +190,10 @@ def calculate_extrinsics():
                 R = possible_Rs[i]
                 t = possible_ts[i]
 
-        R = R @ camera_poses[-1]["R"]
-        t = camera_poses[-1]["t"] + (camera_poses[-1]["R"] @ t)
-
+        R = R @ camera_poses[-1]["R"] # making all relative to the camera 1
+        t = camera_poses[-1]["t"] + (camera_poses[-1]["R"] @ t) # making all relative to the camera 1
+        print("R:", R)
+        print("t:", t)
         camera_poses.append({
             "R": R,
             "t": t
@@ -201,9 +203,29 @@ def calculate_extrinsics():
 
     object_points = triangulate_points(image_points, camera_poses)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
+    global_camera_poses = camera_poses
     print("Reprojection error:", error)
+    print("Camera poses:", camera_poses)
+
+def save_extrinsics():
+    global global_camera_poses
+    global camera_count
+
+    extrinsics = []
+    for i in range(0, camera_count):
+        extrinsics.append({
+            "R": global_camera_poses[i]["R"].tolist(),
+            "t": global_camera_poses[i]["t"].tolist()
+        })
+
+    extrinsics_filename = "extrinsics/extrinsics.json"
+    with open(extrinsics_filename, "w") as outfile:
+        json.dump(extrinsics, outfile)
+
+    print("Extrinsics saved to", extrinsics_filename)
 
 if __name__ == "__main__":
     get_images()
     capture_points()    
     calculate_extrinsics()
+    save_extrinsics()

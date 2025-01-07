@@ -3,3 +3,7 @@
 test.py
 __pycache__/
 .venv/
+a.json
+.blend1
+Helpers old.py
+blender/testing.blend1
