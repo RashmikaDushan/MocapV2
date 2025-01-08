@@ -1,9 +1,9 @@
 .env
 .DS_Store
-test.py
 __pycache__/
 .venv/
 a.json
-.blend1
+*.blend1
 Helpers old.py
-blender/testing.blend1
+CameraCallibrationExtrinsicOld.py
+blender/simulation_test.blend
