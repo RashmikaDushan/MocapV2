@@ -213,10 +213,10 @@ def calculate_extrinsics():
             "R": R,
             "t": t
         })
-        
+
     global_camera_poses = camera_poses
     save_extrinsics("before_ba_")
-    # camera_poses = bundle_adjustment(image_points, camera_poses)
+    camera_poses = bundle_adjustment(image_points, camera_poses)
 
     object_points = triangulate_points(image_points, camera_poses)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
