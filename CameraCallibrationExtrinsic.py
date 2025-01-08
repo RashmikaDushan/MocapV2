@@ -10,7 +10,10 @@ image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestam
 images = []
 image_count = 0
 camera_count = 0
-global_camera_poses = []
+global_camera_poses = [{
+        "R": np.eye(3),
+        "t": np.array([[0],[0],[0]], dtype=np.float32)
+    }]
 
 load_dotenv()
 filename = os.getenv("CAMERA_PARAMS_IN")
@@ -99,34 +102,46 @@ def capture_points(preview=False):
     if preview:
         print("Press 'space' to take a picture and 'q' to quit.")
 
-    for i in range(0, camera_count):
-        image_points_single_camera = []
-        for j in range(0, image_count):
-            image, image_points_single_frame = _find_dot(images[i][j])
-            if len(image_points_single_frame) != 1:
-                print("Found more than one point in the image. Please make sure there is only one point in the image.")
+    image_points = []
+    # print("Images shape:", images.shape)
+
+    for j in range(0, image_count):
+        proccessed_images = []
+        calculated_points = np.zeros((camera_count, 2))
+        for i in range(0, camera_count):
+            # print("Camera", i, "Image", j)
+            image, image_point = _find_dot(images[i][j])
+            calculated_points[i] = np.array(image_point).flatten()
+            proccessed_images.append(image)
+            if len(image_point) != 1:
+                print("Found more than one point or no point in the image . Please make sure there is only one point in the image.")
                 quit()
             else:
-                image_points_single_frame = image_points_single_frame[0]
-            if preview:
-                cv.imshow("Image", image)
-                key = cv.waitKey(0) & 0xFF
-                # # If space is pressed, handle image capture
-                if key == ord(' '):  # Spacebar key
-                    print("Saving points...")
-                    image_points_single_camera.append(image_points_single_frame)
+                image_point = image_point[0]
+        if preview:
+            top = np.hstack([proccessed_images[0], np.hstack([proccessed_images[1], proccessed_images[2]])])
+            bottom = np.hstack([proccessed_images[3], np.hstack([proccessed_images[4], proccessed_images[5]])])
+            image = np.vstack([top, bottom])
+            cv.imshow("Image", image)
+            key = cv.waitKey(0) & 0xFF
+            # # If space is pressed, handle image capture
+            if key == ord(' '):  # Spacebar key
+                print("Saving points...")
+                image_points.append(calculated_points)
+                # image_points_single_camera.append(image_points_single_frame)
 
-                # If 'q' is pressed, exit the program
-                if key == ord('q'):  # 'q' key
-                    print("Exiting...")
-                    cv.destroyAllWindows()
-                    quit()
-            else:
-                image_points_single_camera.append(image_points_single_frame)
-        print("Image points for camera", i, ":", image_points_single_camera)
-        image_points.append(image_points_single_camera)
+            # If 'q' is pressed, exit the program
+            if key == ord('q'):  # 'q' key
+                print("Exiting...")
+                cv.destroyAllWindows()
+                quit()
+        else:
+            image_points.append(calculated_points)
+        print("Image points for camera", i, ":", image_points)
+        # image_points.append(image_points_single_camera)
 
     image_points = np.array(image_points)
+    image_points = np.transpose(image_points, (1, 0, 2))
     print("Image points shape:", image_points.shape)
     print("Image points:", image_points)
     # Release resources and close all OpenCV windows
@@ -152,7 +167,7 @@ def calculate_extrinsics():
         # print("Camera 1 image points:", camera1_image_points)
         # print("Camera 2 image points:", camera2_image_points)
 
-        F, _ = cv.findFundamentalMat(camera1_image_points, camera2_image_points, cv.FM_RANSAC, 1, 0.99999)
+        F, _ = cv.findFundamentalMat(camera1_image_points, camera2_image_points, cv.FM_RANSAC, 10, 0.99999)
         # E = cv.sfm.essentialFromFundamental(F, cameras.get_camera_params(0)["intrinsic_matrix"], cameras.get_camera_params(1)["intrinsic_matrix"])
         # possible_Rs, possible_ts = cv.sfm.motionFromEssential(E)
 
@@ -198,16 +213,19 @@ def calculate_extrinsics():
             "R": R,
             "t": t
         })
-
-    camera_poses = bundle_adjustment(image_points, camera_poses)
+        
+    global_camera_poses = camera_poses
+    save_extrinsics("before_ba_")
+    # camera_poses = bundle_adjustment(image_points, camera_poses)
 
     object_points = triangulate_points(image_points, camera_poses)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
     global_camera_poses = camera_poses
     print("Reprojection error:", error)
     print("Camera poses:", camera_poses)
+    save_extrinsics()
 
-def save_extrinsics():
+def save_extrinsics(prefix=""):
     global global_camera_poses
     global camera_count
 
@@ -215,10 +233,10 @@ def save_extrinsics():
     for i in range(0, camera_count):
         extrinsics.append({
             "R": global_camera_poses[i]["R"].tolist(),
-            "t": global_camera_poses[i]["t"].tolist()
+            "t": global_camera_poses[i]["t"].flatten().tolist()
         })
 
-    extrinsics_filename = "extrinsics/extrinsics.json"
+    extrinsics_filename = f"extrinsics/{prefix}extrinsics.json"
     with open(extrinsics_filename, "w") as outfile:
         json.dump(extrinsics, outfile)
 
@@ -226,6 +244,5 @@ def save_extrinsics():
 
 if __name__ == "__main__":
     get_images()
-    capture_points(True)    
+    capture_points(False)    
     calculate_extrinsics()
-    save_extrinsics()

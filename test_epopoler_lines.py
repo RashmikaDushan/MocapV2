@@ -42,15 +42,15 @@ print("Points in left image: ", ptsLeft)
 print("Points in right image: ", ptsRight)
 
 # Compute the fundamental matrix
-# F, mask = cv2.findFundamentalMat(ptsLeft, ptsRight, cv2.FM_RANSAC,10,0.99999)
+F, mask = cv2.findFundamentalMat(ptsLeft, ptsRight, cv2.FM_RANSAC,10,0.99999)
 # F, mask = cv2.findFundamentalMat(ptsLeft, ptsRight, cv2.FM_7POINT)
-F, mask = cv2.findFundamentalMat(ptsLeft, ptsRight, cv2.FM_LMEDS)
+# F, mask = cv2.findFundamentalMat(ptsLeft, ptsRight, cv2.FM_LMEDS)
 
 print("Fundamental matrix: ", F)
 
 # Select only inlier points
-# ptsLeft = ptsLeft[mask.ravel() == 1]
-# ptsRight = ptsRight[mask.ravel() == 1]
+ptsLeft = ptsLeft[mask.ravel() == 1]
+ptsRight = ptsRight[mask.ravel() == 1]
 
 # Function to draw epilines
 def drawlines(img1, img2, lines, pts1, pts2):
@@ -82,6 +82,10 @@ img3, img4 = drawlines(imgRight, imgLeft, linesRight, ptsRight, ptsLeft)
 plt.subplot(121), plt.imshow(cv2.cvtColor(img5, cv2.COLOR_BGR2RGB)), plt.title("Epilines on Left Image")
 plt.subplot(122), plt.imshow(cv2.cvtColor(img3, cv2.COLOR_BGR2RGB)), plt.title("Epilines on Right Image")
 plt.show()
+
+# Save images
+to_save = np.concatenate((img5, img3), axis=1)
+cv2.imwrite("./epipolar_lines/epilines_ransac.jpg", to_save)
 
 for i in range(len(ptsLeft)):
     x1 = np.array([ptsLeft[i][0], ptsLeft[i][1], 1])

@@ -12,7 +12,7 @@ def get_camera_extrinsics(camera):
     
     # Extract the rotation (3x3) and translation (3x1)
     rotation_matrix = np.array(world_matrix.to_3x3())
-    translation_vector = np.array(world_matrix.to_translation()).reshape(3, 1)
+    translation_vector = np.array(world_matrix.to_translation()).reshape(3)
     
     return {
         "R": rotation_matrix.tolist(),
