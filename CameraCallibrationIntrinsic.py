@@ -28,7 +28,7 @@ objp[0,:,:2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
 prev_img_shape = None
  
 # Extracting path of individual image stored in a given directory
-images = glob.glob(f'./{cam_images_folder_name}/*.jpg')
+images = glob.glob(f'./{cam_images_folder_name}/*.png')
 print(images)
 for fname in images:
     print(fname)
