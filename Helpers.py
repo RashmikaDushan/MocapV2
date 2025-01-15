@@ -18,6 +18,8 @@ def read_camera_params():
 
 
 def triangulate_point(image_points, camera_poses):
+    """image_points shape = [point_count,camera_count,2]"""
+
     global camera_params
 
     read_camera_params()
@@ -36,15 +38,20 @@ def triangulate_point(image_points, camera_poses):
         RT = np.c_[camera_pose["R"], camera_pose["t"]]
         P = camera_params[i]["intrinsic_matrix"] @ RT
         Ps.append(P)
-
+    # print(image_points)
     # https://temugeb.github.io/computer_vision/2021/02/06/direct-linear-transorms.html
     def DLT(Ps, image_points):
+
+        """image_points: [[x_cam1, y_cam1], [x_cam2, y_cam2], ... , [x_cam6, y_cam6]]"""
+
         A = []
 
         for P, image_point in zip(Ps, image_points):
-            A.append(image_point[1]*P[2,:] - P[1,:])
+            # print("P: ",P)
+            # print("image point: ",image_point)
+            A.append(image_point[1]*P[2,:] - P[1,:]) ##create A matrix
             A.append(P[0,:] - image_point[0]*P[2,:])
-            
+        # print("A: ",A)
         A = np.array(A).reshape((len(Ps)*2,4))
         B = A.transpose() @ A
         U, s, Vh = linalg.svd(B, full_matrices = False)
@@ -111,6 +118,8 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 
 def bundle_adjustment(image_points, camera_poses):
     global camera_params
+    image_points = np.transpose(image_points,(1,0,2))
+    print("Image points shape in bundle adjustments:", image_points.shape)
 
     read_camera_params()
 

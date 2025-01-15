@@ -195,10 +195,10 @@ def calculate_extrinsics():
         t = None
         max_points_infront_of_camera = 0
         for i in range(0, 4):
-            object_points = triangulate_points(np.hstack([np.expand_dims(camera1_image_points, axis=1), np.expand_dims(camera2_image_points, axis=1)]), np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]])) # find exact location of the points
+            object_points = triangulate_points(np.hstack([np.expand_dims(camera1_image_points, axis=1), np.expand_dims(camera2_image_points, axis=1)]), np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]])) # image points [96,2,2]
             object_points_camera_coordinate_frame = np.array([possible_Rs[i].T @ object_point for object_point in object_points]) # transform the points to the camera coordinate frame
 
-            points_infront_of_camera = np.sum(object_points[:,2] > 0) + np.sum(object_points_camera_coordinate_frame[:,2] > 0)
+            points_infront_of_camera = np.sum(object_points[:,2] < 0) + np.sum(object_points_camera_coordinate_frame[:,2] < 0)
 
             if points_infront_of_camera > max_points_infront_of_camera:
                 max_points_infront_of_camera = points_infront_of_camera
@@ -218,7 +218,7 @@ def calculate_extrinsics():
     save_extrinsics("before_ba_")
     camera_poses = bundle_adjustment(image_points, camera_poses)
 
-    object_points = triangulate_points(image_points, camera_poses)
+    object_points = triangulate_points(np.transpose(image_points,(1,0,2)), camera_poses)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
     global_camera_poses = camera_poses
     print("Reprojection error:", error)
@@ -244,5 +244,5 @@ def save_extrinsics(prefix=""):
 
 if __name__ == "__main__":
     get_images()
-    capture_points(False)    
+    capture_points(True)    
     calculate_extrinsics()
