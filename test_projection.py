@@ -18,6 +18,10 @@ E1 = [
         -0.0752101019024849,0.6131913065910339],
     [0, 0, 0,1]]
 
+C = [[1.0,0.0,0.0,0.0],
+     [0.0,-1.0,0.0,0.0],
+     [0.0,0.0,-1.0,0.0],
+     [0.0,0.0,0.0,1.0]]
 
 I1 = [
     [933.33, 0.0, 480,0.0],
@@ -29,16 +33,18 @@ E1 = np.array(E1)
 I1 = np.array(I1)
 
 # P1 = I1 @ np.linalg.inv(E1)
+# E1_b = E1 @ C
 
-V = np.linalg.inv(E1) @ X2
-V = np.array([V[0], -V[1], -V[2],1.0])
-print("V: ",V)
+# V = np.linalg.inv(E1) @ X2 #working
+# V = np.array([V[0], -V[1], -V[2],1.0])
+# print("V: ",V)
 
-U = I1 @ V
-U = U/U[2]
-print("U: ",U)
+# U = I1 @ V
+# U = U/U[2]
+# print("U: ",U)
 
-P = I1 @ np.linalg.inv(E1)
+P = I1 @ np.linalg.inv(E1 @ C)
+print("P: ",P)
 
 W = P @ X2
 W = W/W[2]

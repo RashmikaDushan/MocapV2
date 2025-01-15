@@ -143,7 +143,7 @@ def capture_points(preview=False):
     image_points = np.array(image_points)
     image_points = np.transpose(image_points, (1, 0, 2))
     print("Image points shape:", image_points.shape)
-    print("Image points:", image_points)
+    # print("Image points:", image_points)
     # Release resources and close all OpenCV windows
     cv.destroyAllWindows()
 
@@ -194,11 +194,12 @@ def calculate_extrinsics():
         R = None
         t = None
         max_points_infront_of_camera = 0
-        for i in range(0, 4):
+        for i in range(4):
             object_points = triangulate_points(np.hstack([np.expand_dims(camera1_image_points, axis=1), np.expand_dims(camera2_image_points, axis=1)]), np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]])) # image points [96,2,2]
+            print("Object points :", object_points[0])
             object_points_camera_coordinate_frame = np.array([possible_Rs[i].T @ object_point for object_point in object_points]) # transform the points to the camera coordinate frame
 
-            points_infront_of_camera = np.sum(object_points[:,2] < 0) + np.sum(object_points_camera_coordinate_frame[:,2] < 0)
+            points_infront_of_camera = np.sum(object_points[:,2] > 0) + np.sum(object_points_camera_coordinate_frame[:,2] > 0)
 
             if points_infront_of_camera > max_points_infront_of_camera:
                 max_points_infront_of_camera = points_infront_of_camera
@@ -244,5 +245,5 @@ def save_extrinsics(prefix=""):
 
 if __name__ == "__main__":
     get_images()
-    capture_points(True)    
+    capture_points()    
     calculate_extrinsics()

@@ -18,7 +18,7 @@ def read_camera_params():
 
 
 def triangulate_point(image_points, camera_poses):
-    """image_points shape = [point_count,camera_count,2]"""
+    """image_points shape = [camera_count,2]"""
 
     global camera_params
 
@@ -29,14 +29,22 @@ def triangulate_point(image_points, camera_poses):
     image_points = np.delete(image_points, none_indicies, axis=0)
     camera_poses = np.delete(camera_poses, none_indicies, axis=0)
 
-    if len(image_points) <= 1:
+    if len(image_points) < 1:
         return [None, None, None]
 
     Ps = [] # projection matricies
 
     for i, camera_pose in enumerate(camera_poses):
+        C = [[1.0,0.0,0.0,0.0],
+            [0.0,-1.0,0.0,0.0],
+            [0.0,0.0,-1.0,0.0],
+            [0.0,0.0,0.0,1.0]]
         RT = np.c_[camera_pose["R"], camera_pose["t"]]
-        P = camera_params[i]["intrinsic_matrix"] @ RT
+        RT = np.vstack([RT, [0,0,0,1]]) # 4x4 matrix
+        I = camera_params[i]["intrinsic_matrix"]
+        I = np.hstack([camera_params[i]["intrinsic_matrix"], np.zeros((3, 1))]) # 3x4 matrix
+        P = I @ np.linalg.inv(RT @ C)
+        
         Ps.append(P)
     # print(image_points)
     # https://temugeb.github.io/computer_vision/2021/02/06/direct-linear-transorms.html
@@ -47,8 +55,6 @@ def triangulate_point(image_points, camera_poses):
         A = []
 
         for P, image_point in zip(Ps, image_points):
-            # print("P: ",P)
-            # print("image point: ",image_point)
             A.append(image_point[1]*P[2,:] - P[1,:]) ##create A matrix
             A.append(P[0,:] - image_point[0]*P[2,:])
         # print("A: ",A)
@@ -65,6 +71,7 @@ def triangulate_point(image_points, camera_poses):
 
 
 def triangulate_points(image_points, camera_poses):
+    """image_points shape = [point_count,camera_count,2]"""
     object_points = []
     for image_points_i in image_points:
         object_point = triangulate_point(image_points_i, camera_poses)
