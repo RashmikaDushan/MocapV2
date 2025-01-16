@@ -16,7 +16,7 @@ global_camera_poses = [{
     }]
 
 load_dotenv()
-filename = os.getenv("CAMERA_PARAMS_IN")
+filename = "/Users/rashmikadushan/Desktop/MocapV2/camera-params-in.json"
 cam_params = open(filename)
 camera_params = json.load(cam_params)
 
