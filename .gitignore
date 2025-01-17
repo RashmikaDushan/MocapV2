@@ -2,7 +2,6 @@
 __pycache__/
 .venv/
 *.blend1
-*.blend
 /captured_images/*
 mocap
 /checkerboard/*
