@@ -5,7 +5,7 @@ import cv2 as cv
 from scipy.spatial.transform import Rotation
 
 camera_params = None
-camera_params_path = "./camera-params-in.json"
+camera_params_path = "./jsons/camera-params-in.json"
 
 def read_camera_params():
     global camera_params
@@ -117,10 +117,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 
 
 def bundle_adjustment(image_points, camera_poses):
-    global camera_params
     num_cameras = len(camera_poses)
-
-    read_camera_params()
 
     def params_to_camera_poses(params):
         camera_poses = [{
@@ -136,7 +133,6 @@ def bundle_adjustment(image_points, camera_poses):
         return camera_poses
 
     def residual_function(params):
-        global camera_params
         camera_poses = params_to_camera_poses(params)
         object_points = triangulate_points(image_points, camera_poses)
         errors = calculate_reprojection_errors(image_points, object_points, camera_poses)
@@ -146,11 +142,9 @@ def bundle_adjustment(image_points, camera_poses):
     
     init_params = np.array([])
     for i, camera_pose in enumerate(camera_poses[1:]):
-        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"]))
-        init_params = np.concatenate([init_params, rot_vec])
-        init_params = np.concatenate([init_params, camera_pose["t"].flatten()])
-
-    res = optimize.least_squares(
-        residual_function, init_params, verbose=2, loss="cauchy", ftol=1E-2
-    )
-    return params_to_camera_poses(res.x)
+        init_params = np.concatenate([init_params, Rotation.from_matrix(camera_pose["R"]).as_rotvec(), camera_pose["t"].flatten()])
+    
+    result = optimize.least_squares(residual_function, init_params, verbose=2,loss="linear", method='trf', ftol=1E-4)
+    camera_poses = params_to_camera_poses(result.x)
+    
+    return camera_poses
