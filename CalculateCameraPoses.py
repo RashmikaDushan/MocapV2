@@ -91,6 +91,7 @@ def calculate_extrinsics():
     global_camera_poses = camera_poses
     print("Reprojection error:", error)
     save_extrinsics("after_ba_")
+    save_objects(prefix="after_ba_",object_points=object_points)
 
 def save_extrinsics(prefix=""):
     global global_camera_poses

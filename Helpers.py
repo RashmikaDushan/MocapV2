@@ -144,7 +144,7 @@ def bundle_adjustment(image_points, camera_poses):
     for i, camera_pose in enumerate(camera_poses[1:]):
         init_params = np.concatenate([init_params, Rotation.from_matrix(camera_pose["R"]).as_rotvec(), camera_pose["t"].flatten()])
     
-    result = optimize.least_squares(residual_function, init_params, verbose=2,loss="linear", method='trf', ftol=1E-4)
+    result = optimize.least_squares(residual_function, init_params, verbose=2,loss="linear", method='trf', ftol=1E-5, xtol=1E-15)
     camera_poses = params_to_camera_poses(result.x)
     
     return camera_poses
