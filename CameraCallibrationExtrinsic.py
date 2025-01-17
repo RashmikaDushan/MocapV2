@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
-from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment
+from Helpers import triangulate_points, calculate_reprojection_errors
+from test_bundle_ad import bundle_adjustment
 import os
 import glob
 import json
@@ -28,12 +29,12 @@ def get_images(preview=False):
 
     img_folder_paths = sorted([f"extrinsics/{i}" for i in os.listdir("extrinsics") if i.startswith('cam')])
     camera_count = len(img_folder_paths)
-    print(img_folder_paths)
+    # print(img_folder_paths)
 
     for img_folder_path in img_folder_paths:
         image_names = sorted(glob.glob(f'./{img_folder_path}/*.jpg'))
         image_count = len(image_names)
-        print(image_names)
+        # print(image_names)
         imgs = []
         for fname in image_names:
             img = cv.imread(fname)
@@ -143,7 +144,7 @@ def capture_points(preview=False):
     image_points = np.array(image_points)
     image_points = np.transpose(image_points, (1, 0, 2))
     print("Image points shape:", image_points.shape)
-    print("Image points:", image_points)
+    # print("Image points:", image_points)
     # Release resources and close all OpenCV windows
     cv.destroyAllWindows()
 
@@ -216,8 +217,8 @@ def calculate_extrinsics():
 
     global_camera_poses = camera_poses
     save_extrinsics("before_ba_")
-    image_points = np.transpose(image_points, (1, 0, 2))
-    camera_poses = bundle_adjustment(image_points, camera_poses)
+    image_points = np.transpose(image_points, (1, 0, 2)) #96,6,2
+    camera_poses = bundle_adjustment(image_points, camera_poses,cam_params)
     print("before train",image_points.shape)
     object_points = triangulate_points(image_points, camera_poses)
     save_objects("after_ba_",object_points)

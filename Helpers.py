@@ -84,6 +84,9 @@ def calculate_reprojection_errors(image_points, object_points, camera_poses):
 
 
 def calculate_reprojection_error(image_points, object_point, camera_poses):
+    '''image points shape (cam_count,2)
+    object_point shape (3)
+    '''
     global camera_params
 
     read_camera_params()
@@ -95,70 +98,59 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 
     if len(image_points) <= 1:
         return None
-    image_points_t = image_points.transpose((0,1))
 
     errors = np.array([])
     for i, camera_pose in enumerate(camera_poses):
         if np.all(image_points[i] == None, axis=0):
             continue
-        projected_img_points, _ = cv.projectPoints(
+        projected_img_point, _ = cv.projectPoints(
             np.expand_dims(object_point, axis=0).astype(np.float32), 
             np.array(camera_pose["R"], dtype=np.float64), 
             np.array(camera_pose["t"], dtype=np.float64), 
             np.array(camera_params[i]["intrinsic_matrix"]), 
             np.array(camera_params[i]["distortion_coef"])
         )
-        projected_img_point = projected_img_points[:,0,:][0]
-        errors = np.concatenate([errors, (image_points_t[i]-projected_img_point).flatten() ** 2])
+        projected_img_point = projected_img_point[0][0]
+        errors = np.concatenate([errors, (np.array(image_points[i])-np.array(projected_img_point)).flatten() ** 2])
     
     return errors.mean()
 
 
 def bundle_adjustment(image_points, camera_poses):
     global camera_params
+    num_cameras = len(camera_poses)
 
     read_camera_params()
 
     def params_to_camera_poses(params):
-        focal_distances = []
-        num_cameras = int((params.size-1)/7)+1
         camera_poses = [{
             "R": np.eye(3),
             "t": np.array([0,0,0], dtype=np.float32)
         }]
-        focal_distances.append(params[0])
         for i in range(0, num_cameras-1):
-            focal_distances.append(params[i*7+1])
             camera_poses.append({
-                "R": Rotation.as_matrix(Rotation.from_rotvec(params[i*7 + 2 : i*7 + 3 + 2])),
-                "t": params[i*7 + 3 + 2 : i*7 + 6 + 2]
+                "R": Rotation.as_matrix(Rotation.from_rotvec(params[i*6 : i*6 + 3])),
+                "t": params[i*6 + 3 : i*6 + 6]
             })
 
-        return camera_poses, focal_distances
+        return camera_poses
 
     def residual_function(params):
         global camera_params
-        camera_poses, focal_distances = params_to_camera_poses(params)
-        for i in range(0, len(camera_poses)):
-            intrinsic = np.array(camera_params[i]["intrinsic_matrix"])
-            # intrinsic[0, 0] = focal_distances[i]
-            # intrinsic[1, 1] = focal_distances[i]
+        camera_poses = params_to_camera_poses(params)
         object_points = triangulate_points(image_points, camera_poses)
         errors = calculate_reprojection_errors(image_points, object_points, camera_poses)
         errors = errors.astype(np.float32)
         
         return errors
-
-    focal_distance = camera_params[0]["intrinsic_matrix"][0][0]
-    init_params = np.array([focal_distance])
+    
+    init_params = np.array([])
     for i, camera_pose in enumerate(camera_poses[1:]):
-        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
-        focal_distance = camera_params[i]["intrinsic_matrix"][0][0]
-        init_params = np.concatenate([init_params, [focal_distance]])
+        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"]))
         init_params = np.concatenate([init_params, rot_vec])
         init_params = np.concatenate([init_params, camera_pose["t"].flatten()])
 
     res = optimize.least_squares(
         residual_function, init_params, verbose=2, loss="cauchy", ftol=1E-2
     )
-    return params_to_camera_poses(res.x)[0]
+    return params_to_camera_poses(res.x)
