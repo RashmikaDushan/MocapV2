@@ -18,6 +18,8 @@ def read_camera_params():
 
 
 def triangulate_point(image_points, camera_poses):
+    """image_points shape = [camera_count,2]"""
+
     global camera_params
 
     read_camera_params()
@@ -39,6 +41,9 @@ def triangulate_point(image_points, camera_poses):
 
     # https://temugeb.github.io/computer_vision/2021/02/06/direct-linear-transorms.html
     def DLT(Ps, image_points):
+
+        """image_points: [[x_cam1, y_cam1], [x_cam2, y_cam2], ... , [x_cam6, y_cam6]]"""
+
         A = []
 
         for P, image_point in zip(Ps, image_points):
@@ -58,6 +63,7 @@ def triangulate_point(image_points, camera_poses):
 
 
 def triangulate_points(image_points, camera_poses):
+    '''image_points shape = [obj points,camera_count,2]'''
     object_points = []
     for image_points_i in image_points:
         object_point = triangulate_point(image_points_i, camera_poses)
@@ -89,7 +95,6 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 
     if len(image_points) <= 1:
         return None
-
     image_points_t = image_points.transpose((0,1))
 
     errors = np.array([])
@@ -101,7 +106,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
             np.array(camera_pose["R"], dtype=np.float64), 
             np.array(camera_pose["t"], dtype=np.float64), 
             np.array(camera_params[i]["intrinsic_matrix"]), 
-            np.array([])
+            np.array(camera_params[i]["distortion_coef"])
         )
         projected_img_point = projected_img_points[:,0,:][0]
         errors = np.concatenate([errors, (image_points_t[i]-projected_img_point).flatten() ** 2])
@@ -136,8 +141,8 @@ def bundle_adjustment(image_points, camera_poses):
         camera_poses, focal_distances = params_to_camera_poses(params)
         for i in range(0, len(camera_poses)):
             intrinsic = np.array(camera_params[i]["intrinsic_matrix"])
-            intrinsic[0, 0] = focal_distances[i]
-            intrinsic[1, 1] = focal_distances[i]
+            # intrinsic[0, 0] = focal_distances[i]
+            # intrinsic[1, 1] = focal_distances[i]
         object_points = triangulate_points(image_points, camera_poses)
         errors = calculate_reprojection_errors(image_points, object_points, camera_poses)
         errors = errors.astype(np.float32)

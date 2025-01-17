@@ -4,8 +4,8 @@ import numpy as np
 import mathutils
 
 # Path to the extrinsics.json file
-filename_with_ba = "/Users/rashmikadushan/Desktop/Liveroom/MocapV2/extrinsics/extrinsics.json"
-filename_without_ba = "/Users/rashmikadushan/Desktop/Liveroom/MocapV2/extrinsics/before_ba_extrinsics.json"
+filename_with_ba = "/Users/rashmikadushan/Desktop/MocapV2/extrinsics/extrinsics.json"
+filename_without_ba = "/Users/rashmikadushan/Desktop/MocapV2/extrinsics/before_ba_extrinsics.json"
 
 def generate_setup(filename,collection_name):
     # Load the extrinsic data
@@ -35,11 +35,16 @@ def generate_setup(filename,collection_name):
         
         # Create a 4x4 transformation matrix
         rotation_matrix = np.array(data["R"])
+        c = [[1.0,0.0,0.0,],
+             [0.0,-1.0,0.0],
+             [0.0,0.0,-1.0]]
+        rotation_matrix = rotation_matrix @ c
         translation_vector = np.array(data["t"])
         transformation_matrix = np.eye(4)  # Start with an identity matrix
         transformation_matrix[:3, :3] = rotation_matrix
         transformation_matrix[:3, 3] = translation_vector
         
+        transformation_matrix = transformation_matrix
         # Convert numpy matrix to Blender's mathutils.Matrix
         transformation_matrix_blender = mathutils.Matrix(transformation_matrix)
         

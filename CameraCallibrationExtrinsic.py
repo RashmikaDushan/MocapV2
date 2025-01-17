@@ -216,9 +216,12 @@ def calculate_extrinsics():
 
     global_camera_poses = camera_poses
     save_extrinsics("before_ba_")
+    image_points = np.transpose(image_points, (1, 0, 2))
     camera_poses = bundle_adjustment(image_points, camera_poses)
-
+    print("before train",image_points.shape)
     object_points = triangulate_points(image_points, camera_poses)
+    save_objects("after_ba_",object_points)
+    # print(object_points)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
     global_camera_poses = camera_poses
     print("Reprojection error:", error)
@@ -241,6 +244,14 @@ def save_extrinsics(prefix=""):
         json.dump(extrinsics, outfile)
 
     print("Extrinsics saved to", extrinsics_filename)
+
+def save_objects(prefix="",object_points=None):
+    objects_filename = f"extrinsics/{prefix}objects.json"
+    with open(objects_filename, "w") as outfile:
+        json.dump(object_points.tolist(), outfile)
+
+    print("Object points saved to", objects_filename)
+
 
 if __name__ == "__main__":
     get_images()
