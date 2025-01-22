@@ -2,14 +2,14 @@ import bpy
 import json
 
 # Path to your JSON file
-json_file_path = "/Users/rashmikadushan/Desktop/MocapV2/extrinsics/after_ba_objects.json"
+json_file_path = "/Users/rashmikadushan/Desktop/MocapV2/jsons/after_ba_objects.json"
 
 # Load the JSON data
 with open(json_file_path, "r") as file:
     coordinates = json.load(file)
 
 # Collection name
-collection_name = "objects"
+collection_name = "after_ba_objects"
 
 # Check if the "calculated" collection exists
 if collection_name in bpy.data.collections:

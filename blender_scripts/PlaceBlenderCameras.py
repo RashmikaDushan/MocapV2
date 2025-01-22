@@ -4,8 +4,8 @@ import numpy as np
 import mathutils
 
 # Path to the extrinsics.json file
-filename_with_ba = "/Users/rashmikadushan/Desktop/MocapV2/extrinsics/extrinsics.json"
-filename_without_ba = "/Users/rashmikadushan/Desktop/MocapV2/extrinsics/before_ba_extrinsics.json"
+filename_with_ba = "/Users/rashmikadushan/Desktop/MocapV2/jsons/after_ba_extrinsics.json"
+filename_without_ba = "/Users/rashmikadushan/Desktop/MocapV2/jsons/before_ba_extrinsics.json"
 
 def generate_setup(filename,collection_name):
     # Load the extrinsic data
