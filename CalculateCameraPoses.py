@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment
+from CapturePoints import get_floor_images, capture_floor_points
 import json
 
 image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestamp1 = [timestamp1, timestamp2, ...]
@@ -110,6 +111,15 @@ def save_extrinsics(prefix=""):
 
     print("Extrinsics saved to", extrinsics_filename)
 
+def get_extrinsics():
+    global global_camera_poses
+    with open("./jsons/after_ba_extrinsics.json") as file:
+        global_camera_poses = json.load(file)
+        for i in range(0, len(global_camera_poses)):
+            global_camera_poses[i]["R"] = np.array(global_camera_poses[i]["R"])
+            global_camera_poses[i]["t"] = np.array(global_camera_poses[i]["t"])
+    camera_count = len(global_camera_poses)
+
 def save_objects(prefix="",object_points=None):
     objects_filename = f"./jsons/{prefix}objects.json"
     with open(objects_filename, "w") as outfile:
@@ -117,7 +127,31 @@ def save_objects(prefix="",object_points=None):
 
     print("Object points saved to", objects_filename)
 
+def get_origin(points_3d):
+    global global_camera_poses
+    camera_poses = global_camera_poses
+    if len(points_3d) == 4:
+        origin = np.mean(points_3d, axis=0)
+        print("Origin:", origin)
+        for pose in camera_poses:
+            pose['t'] = pose['t'] - origin
+        global_camera_poses = camera_poses
+    else:
+        print("Invalid number of points to calculate origin")
 
-if __name__ == "__main__":  
-    get_points()
-    calculate_extrinsics()
+def get_floor(points_3d):
+    if len(points_3d) == 4:
+        floor = np.mean(points_3d, axis=0)
+        print("Floor:", floor)
+    else:
+        print("Invalid number of points to calculate floor")
+
+if __name__ == "__main__":
+    get_extrinsics()
+    get_floor_images()
+    points = capture_floor_points(preview=True)
+    points = points.transpose(1,0,2)
+    objs = triangulate_points(points, global_camera_poses)
+    print(objs)
+    get_origin(objs)  
+    save_extrinsics("after_origin_") 
