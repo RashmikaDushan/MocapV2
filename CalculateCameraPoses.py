@@ -237,6 +237,5 @@ if __name__ == "__main__":
     get_floor(objs)
     save_extrinsics("after_origin_")
 
-
     save_objects("after_origin_",objs)
     correct_objs()
