@@ -1,0 +1,10 @@
+{
+    "checkerboard_images":"./checkerboard",
+    "intrinsics":"./jsons/camera-params-in.json",
+    "camera_callibration_images":"./captured_images",
+    "before_ba_poses":"./jsons/before_ba_extrinsics.json",
+    "after_ba_poses":"./jsons/after_ba_extrinsics.json",
+    "after_ba_objects":"./jsons/after_ba_objects.json",
+    "after_origin_poses":"./jsons/after_origin_extrinsics.json",
+    "after_origin_objects":"./jsons/after_origin_objects.json"
+}
