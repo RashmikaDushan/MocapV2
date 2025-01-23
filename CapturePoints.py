@@ -62,12 +62,13 @@ def get_floor_images(preview=False,debug=False):
     global camera_count
     images = []
 
-    image_names = sorted(glob.glob(f'./get_floor_images/*.png'))
+    image_names = sorted(glob.glob(f'./get_floor_images/*.jpg'))
     image_count = 1
     camera_count = len(image_names)
     if debug:
         print(image_names)
     for fname in image_names:
+        print(fname)
         img = cv.imread(fname)
         img = image_filter(img)
         if preview:
@@ -161,7 +162,6 @@ def capture_pose_points(preview=False,debug=False):
         
         if debug:
             print("Image points for camera", i, ":", image_points)
-
     with open(points_json, "w") as file:
         json.dump(image_points, file)
 
@@ -204,5 +204,5 @@ def capture_floor_points(preview=False,debug=False):
     return np.array(calculated_points)
 
 if __name__ == "__main__":
-    get_pose_images()
-    capture_pose_points(preview=True)
+    get_pose_images(debug=True)
+    capture_pose_points()
