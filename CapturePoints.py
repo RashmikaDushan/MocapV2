@@ -1,10 +1,8 @@
 import cv2 as cv
 import numpy as np
-from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment
 import os
 import glob
 import json
-from dotenv import load_dotenv
 
 image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestamp1 = [timestamp1, timestamp2, ...]
 images = []
@@ -62,7 +60,7 @@ def get_floor_images(preview=False,debug=False):
     global camera_count
     images = []
 
-    image_names = sorted(glob.glob(f'./get_floor_images/*.jpg'))
+    image_names = sorted(glob.glob(f'./get_floor_images/test/*.jpg'))
     image_count = 1
     camera_count = len(image_names)
     if debug:

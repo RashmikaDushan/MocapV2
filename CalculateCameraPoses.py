@@ -1,9 +1,10 @@
 import cv2 as cv
 import numpy as np
-from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment
+from Helpers import triangulate_points, calculate_reprojection_errors, bundle_adjustment, find_point_correspondance_and_object_points
 from CapturePoints import get_floor_images, capture_floor_points
 import json
 from itertools import combinations
+import time
 
 image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestamp1 = [timestamp1, timestamp2, ...]
 images = []
@@ -38,6 +39,7 @@ def calculate_extrinsics():
     global camera_params
     global camera_count
     global global_camera_poses
+    Fs = []
 
     camera_poses = [{
         "R": np.eye(3),
@@ -50,6 +52,7 @@ def calculate_extrinsics():
         camera2_image_points = np.array(camera2_image_points, dtype=np.float32)
 
         F, _ = cv.findFundamentalMat(camera1_image_points, camera2_image_points, cv.FM_RANSAC, 10, 0.99999)
+        Fs.append(F.tolist())
 
         K1 = camera_params[0]["intrinsic_matrix"]
         K2 = camera_params[1]["intrinsic_matrix"]
@@ -83,6 +86,9 @@ def calculate_extrinsics():
             "R": R,
             "t": t
         })
+    
+    with open("./jsons/fundamentals.json", "w") as outfile:
+        json.dump(Fs, outfile)
 
     global_camera_poses = camera_poses
     save_extrinsics("before_ba_")
@@ -90,8 +96,6 @@ def calculate_extrinsics():
     camera_poses = bundle_adjustment(image_points, camera_poses)
     object_points = triangulate_points(image_points, camera_poses)
     save_objects("after_ba_",object_points)
-    global objs
-    objs = object_points[-4:]
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
     global_camera_poses = camera_poses
     print("Reprojection error:", error)
@@ -223,19 +227,19 @@ def correct_objs(): #  just for testing
     save_objects("after_floor_",objs)
 
 if __name__ == "__main__":
-    # get_points()
+    get_points()
+    # calculate_extrinsics()
     get_extrinsics()
-    # get_floor_images()
-    # points = capture_floor_points()
+    get_floor_images()
+    points = capture_floor_points()
     # points = points.transpose(1,0,2)
-    # objs = triangulate_points(points, global_camera_poses)
-    objs = np.array([  [0.08880196267446143, 0.22332760353934178, 2.0552016454926565],
-  [-0.13130366977179933, 0.25636492995453347, 1.947566787299836],
-  [-0.07684476200391585, 0.20775582531320708, 2.1066310612221026],
-  [0.03493518857610382, 0.27290659777911835, 1.8965465465350912]])
+    start_time = time.time()
+    print(points.shape)
+    image_points = np.transpose(image_points, (1, 0, 2))
+    e, objs = find_point_correspondance_and_object_points(points, global_camera_poses)
+
+    end_time = time.time()
+    print(f"FPS for find_point_correspondance_and_object_points: {1/(end_time - start_time)} FPS")
+    save_objects("after_origin_",objs)
     get_origin(objs)
     get_floor(objs)
-    save_extrinsics("after_origin_")
-
-    save_objects("after_origin_",objs)
-    correct_objs()
