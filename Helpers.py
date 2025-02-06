@@ -3,9 +3,28 @@ from scipy import linalg, optimize
 import json
 import cv2 as cv
 from scipy.spatial.transform import Rotation
+import copy
 
 camera_params = None
 camera_params_path = "./jsons/camera-params-in.json"
+Fs = []
+
+def get_extrinsics():
+    with open("./jsons/after_ba_extrinsics.json") as file:
+        camera_poses = json.load(file)
+        for i in range(0, len(camera_poses)):
+            camera_poses[i]["R"] = np.array(camera_poses[i]["R"])
+            camera_poses[i]["t"] = np.array(camera_poses[i]["t"])
+    camera_count = len(camera_poses)
+    return camera_poses, camera_count
+
+def read_fundamental_matrix():
+    global Fs
+
+    if len(Fs) == 0:
+        with open("./jsons/fundamentals.json") as file:
+            Fs = json.load(file)
+            print("Fundamental matrix loaded")
 
 def read_camera_params():
     global camera_params
@@ -15,6 +34,7 @@ def read_camera_params():
         with open(camera_params_path, "r") as file:
             camera_params = json.load(file)
             camera_params = np.array(camera_params)
+            print("Camera params loaded")
 
 
 def triangulate_point(image_points, camera_poses):
@@ -33,7 +53,6 @@ def triangulate_point(image_points, camera_poses):
         return [None, None, None]
 
     Ps = [] # projection matricies
-
     for i, camera_pose in enumerate(camera_poses):
         RT = np.c_[camera_pose["R"], camera_pose["t"]]
         P = camera_params[i]["intrinsic_matrix"] @ RT
@@ -148,3 +167,94 @@ def bundle_adjustment(image_points, camera_poses):
     camera_poses = params_to_camera_poses(result.x)
     
     return camera_poses
+
+def find_point_correspondance_and_object_points(image_points, camera_poses):
+    '''image_points shape = [camera_count, obj points, 2]'''
+    global camera_params
+    obj_count = len(image_points[0])
+    read_camera_params()
+
+    for image_points_i in image_points:
+        try:
+            image_points_i.remove([None, None])
+        except:
+            pass
+
+    # [object_points, possible image_point groups, image_point from camera]
+    correspondances = [[[i]] for i in image_points[0]]
+
+    Ps = [] # projection matricies
+    for i, camera_pose in enumerate(camera_poses):
+        RT = np.c_[camera_pose["R"], camera_pose["t"]]
+        P = camera_params[i]["intrinsic_matrix"] @ RT
+        Ps.append(P)
+
+    root_image_points = [{"camera": 0, "point": point} for point in image_points[0]]
+
+    read_fundamental_matrix()
+
+    for i in range(1, len(camera_poses)):
+        epipolar_lines = []
+        for root_image_point in root_image_points:
+            F = np.array(Fs[i-1])
+            line = cv.computeCorrespondEpilines(np.array([root_image_point["point"]], dtype=np.float32), 1, F)
+            epipolar_lines.append(line[0,0].tolist())
+            # frames[i] = drawlines(frames[i], line[0])
+
+        not_closest_match_image_points = np.array(image_points[i])
+        points = np.array(image_points[i])
+
+        for j, [a, b, c] in enumerate(epipolar_lines):
+            distances_to_line = np.array([])
+            if len(points) != 0:
+                distances_to_line = np.abs(a*points[:,0] + b*points[:,1] + c) / np.sqrt(a**2 + b**2)
+
+            possible_matches = points[distances_to_line < 5].copy()
+
+            # Commenting out this code produces more points, but more garbage points too
+            # delete closest match from future consideration
+            # if len(points) != 0:
+            #     points = np.delete(points, np.argmin(distances_to_line), axis=0)
+
+            # sort possible matches from smallest to largest
+            distances_to_line = distances_to_line[distances_to_line < 5]
+            possible_matches_sorter = distances_to_line.argsort()
+            possible_matches = possible_matches[possible_matches_sorter]
+    
+            if len(possible_matches) == 0:
+                for possible_group in correspondances[j]:
+                    possible_group.append([None, None])
+            else:
+                not_closest_match_image_points = [row for row in not_closest_match_image_points.tolist() if row != possible_matches.tolist()[0]]
+                not_closest_match_image_points = np.array(not_closest_match_image_points)
+                
+                new_correspondances_j = []
+                for possible_match in possible_matches:
+                    temp = copy.deepcopy(correspondances[j])
+                    for possible_group in temp:
+                        possible_group.append(possible_match.tolist())
+                    new_correspondances_j += temp
+                correspondances[j] = new_correspondances_j
+
+        for not_closest_match_image_point in not_closest_match_image_points:
+            root_image_points.append({"camera": i, "point": not_closest_match_image_point})
+            temp = [[[None, None]] * i]
+            temp[0].append(not_closest_match_image_point.tolist())
+            correspondances.append(temp)
+
+    object_points = []
+    errors = []
+    for image_points in correspondances:
+        object_points_i = triangulate_points(image_points, camera_poses)
+
+        if np.all(object_points_i == None):
+            continue
+
+        errors_i = calculate_reprojection_errors(image_points, object_points_i, camera_poses)
+
+        object_points.append(object_points_i[np.argmin(errors_i)])
+        errors.append(np.min(errors_i))
+    sorted_indices = np.argsort(errors)
+    sorted_errors = sorted_indices[:obj_count]
+    selected_object_points = [object_points[i] for i in sorted_errors]
+    return np.array(object_points)

@@ -4,8 +4,6 @@ import glob
 
 cam_images_folder_name = "checkerboard" # Folder name containing images
 
-cam_images_folder_name_calibrated = f'{cam_images_folder_name}_c'
-
 CHECKERBOARD = (6,9)
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
  

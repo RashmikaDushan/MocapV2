@@ -6,6 +6,7 @@ import mathutils
 # Path to the extrinsics.json file
 filename_with_ba = "/Users/rashmikadushan/Desktop/MocapV2/jsons/after_ba_extrinsics.json"
 filename_without_ba = "/Users/rashmikadushan/Desktop/MocapV2/jsons/before_ba_extrinsics.json"
+filename_with_origin = "/Users/rashmikadushan/Desktop/MocapV2/jsons/after_origin_extrinsics.json"
 
 def generate_setup(filename,collection_name):
     # Load the extrinsic data
@@ -55,3 +56,4 @@ def generate_setup(filename,collection_name):
 
 generate_setup(filename_without_ba,"Calculated_no_ba")
 generate_setup(filename_with_ba,"Calculated_ba")
+generate_setup(filename_with_origin,"Calculated_origin")
