@@ -258,3 +258,5 @@ def find_point_correspondance_and_object_points(image_points, camera_poses):
     sorted_errors = sorted_indices[:obj_count]
     selected_object_points = [object_points[i] for i in sorted_errors]
     return np.array(object_points)
+
+

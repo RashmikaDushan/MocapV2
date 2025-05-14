@@ -1,20 +1,14 @@
-import os
 import sys
 import time
 import threading
-import numpy as np
 import PySpin
-import cv2  # OpenCV for faster display
+import cv2
+from lib.ImageOperations import image_filter, find_points
+import numpy as np
 
-# Global control variable
-global continue_recording
-continue_recording = True
 
-def keyboard_listener():
-    """Thread function to listen for keyboard input"""
-    global continue_recording
-    input('Press Enter to stop recording...')
-    continue_recording = False
+running = threading.Event()
+running.set()
 
 def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
     """
@@ -26,8 +20,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
     :return: True if successful, False otherwise.
     :rtype: bool
     """
-    global continue_recording
-    
+    global running
     try:
         # Configure stream buffer handling mode
         sNodemap = cam.GetTLStreamNodeMap()
@@ -68,12 +61,6 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
         window_name = f'Camera Feed - {device_serial_number}'
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
         
-        # Start a separate thread for keyboard input
-        input_thread = threading.Thread(target=keyboard_listener)
-        input_thread.daemon = True
-        input_thread.start()
-        
-        # Optional: Set higher exposure and gain if needed
         # Configure exposure
         try:
             # Set exposure auto to off for manual control
@@ -98,9 +85,10 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
         frame_count = 0
         start_time = time.time()
         fps = 0
+        time.sleep(1)  # Allow time for camera to stabilize
         
         # Main acquisition loop
-        while continue_recording:
+        while running.is_set():
             try:
                 # Get next image with shorter timeout for responsiveness
                 image_result = cam.GetNextImage(500)
@@ -108,6 +96,10 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
+                    image, detected_points = _find_dot(images[i][j])
+                    # h,w = image_data.shape
+                    # print(f"Image shape: {image_data.shape}")
+                    image_data_new = find_points(image_data)
                     
                     # Calculate and display FPS every second
                     frame_count += 1
@@ -119,7 +111,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                     
                     # Add FPS text to the image
                     cv2.putText(image_data, f"FPS: {fps:.1f}", (10, 30), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
                     
                     # Display the image using OpenCV (much faster than matplotlib)
                     cv2.imshow(window_name, image_data)
@@ -128,18 +120,19 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                     key = cv2.waitKey(1)
                     if key == 27:  # ESC key
                         print('ESC pressed. Exiting...')
-                        continue_recording = False
+                        running.clear()
+                        break
                 
                 # Release the image to avoid buffer filling
                 image_result.Release()
                 
             except PySpin.SpinnakerException as ex:
                 print(f'Error: {ex}')
-                continue_recording = False
+                running.clear()
         
         # End acquisition and clean up
         cam.EndAcquisition()
-        cv2.destroyAllWindows()
+        cv2.destroyWindow(window_name)
         print("Camera feed stopped")
         
     except PySpin.SpinnakerException as ex:
@@ -188,6 +181,16 @@ def run_single_camera(cam):
                     max_packet_size = node_packet_size.GetMax()
                     node_packet_size.SetValue(max_packet_size)
                     print(f'Packet size set to maximum ({max_packet_size})')
+
+                
+                # binning_horizontal = PySpin.CIntegerPtr(nodemap.GetNode("Width"))
+                # if PySpin.IsAvailable(binning_horizontal) and PySpin.IsWritable(binning_horizontal):
+                #     binning_horizontal.SetValue(1224)  # 2x binning
+
+                
+                # binning_vertical = PySpin.CIntegerPtr(nodemap.GetNode("Height"))
+                # if PySpin.IsAvailable(binning_vertical) and PySpin.IsWritable(binning_vertical):
+                #     binning_vertical.SetValue(1024)  # 2x binning
         except PySpin.SpinnakerException as ex:
             print(f'Notice: GigE optimization not applicable - {ex}')
             
@@ -207,13 +210,14 @@ def main():
     """
     Main function.
     """
+    global running
     try:
         # Get system instance
         system = PySpin.System.GetInstance()
         
         # Print system info
-        version = system.GetLibraryVersion()
-        print(f'Library version: {version.major}.{version.minor}.{version.type}.{version.build}')
+        # version = system.GetLibraryVersion()
+        print(f'MoCap v2.0')
         
         # Get camera list
         cam_list = system.GetCameras()
@@ -226,18 +230,30 @@ def main():
             system.ReleaseInstance()
             print('No cameras detected!')
             input('Press Enter to exit...')
+            sys.exit(0)
             return False
             
-        # Run on first camera (modify for multiple cameras)
-        result = run_single_camera(cam_list[0])
+        camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],))
+        camera1_display.start()
+        camera2_display = threading.Thread(target=run_single_camera, args=(cam_list[1],))
+        camera2_display.start()
+
+        while running.is_set():
+            time.sleep(0.1)
+            print('Running...')
         
+        time.sleep(1)
+        print('Stopping cameras...')
+        camera1_display.join()
+        camera2_display.join()
+
         # Clean up
-        del cam_list[0]  # Important for proper memory management
+        # del cam_list[0]  # Important for proper memory management
         cam_list.Clear()
         system.ReleaseInstance()
         
         print('\nDone!')
-        return result
+        return True
         
     except PySpin.SpinnakerException as ex:
         print(f'Error: {ex}')
@@ -246,4 +262,5 @@ def main():
 
 if __name__ == '__main__':
     success = main()
+    print('Exiting...')
     sys.exit(0 if success else 1)

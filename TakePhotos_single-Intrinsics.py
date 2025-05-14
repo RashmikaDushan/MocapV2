@@ -3,7 +3,7 @@ import time
 import threading
 import PySpin
 import cv2
-from CapturePointsSingleCamera import image_filter, find_points
+from lib.ImageOperations import image_filter, find_points
 import numpy as np
 
 
@@ -96,6 +96,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
+                    image_data = cv2.flip(image_data, 1)  # Flip vertically
                     
                     # Calculate and display FPS every second
                     frame_count += 1

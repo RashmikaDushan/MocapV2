@@ -1,7 +1,7 @@
 import cv2 as cv
 import threading
 import queue
-from Helpers import get_extrinsics
+from lib.Helpers import get_extrinsics
 
 camera_poses, camera_count = get_extrinsics()
 

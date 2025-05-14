@@ -3,7 +3,7 @@ import time
 import threading
 import PySpin
 import cv2
-from CapturePointsSingleCamera import image_filter, find_points
+from lib.ImageOperations import image_filter, find_points
 import numpy as np
 
 
@@ -12,7 +12,7 @@ running.set()
 take_photo = threading.Event()
 take_photo.clear()
 
-def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num):
+def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped):
     """
     This function continuously acquires images from a device and displays them using OpenCV.
     
@@ -98,6 +98,8 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
+                    if flipped:
+                        image_data = cv2.flip(image_data, 1)
                     
                     # Calculate and display FPS every second
                     frame_count += 1
@@ -147,7 +149,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num):
     return True
 
 
-def run_single_camera(cam,cam_num=0):
+def run_single_camera(cam,cam_num=0,flipped=False):
     """
     Camera initialization and execution function.
     
@@ -165,7 +167,7 @@ def run_single_camera(cam,cam_num=0):
         nodemap = cam.GetNodeMap()
             
         # Run acquisition and display function
-        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num)
+        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped)
         
         # Deinitialize camera
         cam.DeInit()

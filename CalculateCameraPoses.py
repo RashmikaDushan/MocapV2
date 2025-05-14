@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-from Helpers import get_extrinsics, triangulate_points, calculate_reprojection_errors, bundle_adjustment, find_point_correspondance_and_object_points
+from lib.Helpers import get_extrinsics, triangulate_points, calculate_reprojection_errors, bundle_adjustment, find_point_correspondance_and_object_points
 from CapturePoints import get_floor_images, capture_floor_points
 import json
 from itertools import combinations
@@ -24,6 +24,7 @@ camera_params_file = open(intrinsics_json)
 camera_params = json.load(camera_params_file)
 
 def get_points():
+    '''Read image points from json'''
     global image_points
     global camera_count
 
@@ -35,6 +36,7 @@ def get_points():
     image_points = np.transpose(image_points, (1, 0, 2))
 
 def calculate_extrinsics():
+    '''Calculate extrinsics from image points'''
     global image_points
     global camera_params
     global camera_count
@@ -103,6 +105,7 @@ def calculate_extrinsics():
     save_objects(prefix="after_ba_",object_points=object_points)
 
 def save_extrinsics(prefix=""):
+    '''Save camera poses to a json'''
     global global_camera_poses
     global camera_count
 
@@ -120,6 +123,7 @@ def save_extrinsics(prefix=""):
     print("Extrinsics saved to", extrinsics_filename)
 
 def save_objects(prefix="",object_points=None):
+    '''Save object (which were used to calculate the camera poses) to a json'''
     objects_filename = f"./jsons/{prefix}objects.json"
     with open(objects_filename, "w") as outfile:
         json.dump(object_points.tolist(), outfile)
