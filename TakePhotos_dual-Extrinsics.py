@@ -12,7 +12,7 @@ running.set()
 take_photo = threading.Event()
 take_photo.clear()
 
-def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped):
+def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,floor=False):
     """
     This function continuously acquires images from a device and displays them using OpenCV.
     
@@ -126,7 +126,10 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped):
                         take_photo.set()
                     if take_photo.is_set():
                         print('Taking photo...')
-                        image_name = f'./captured_images/cam{cam_num}/{int(time.time())}.png'
+                        if floor:
+                            image_name = f'./floor_images/cam{cam_num}/{int(time.time())}.png'
+                        else:
+                            image_name = f'./captured_images/cam{cam_num}/{int(time.time())}.png'
                         cv2.imwrite(image_name, image_data)
                         take_photo.clear() # idk why but it works
                 
