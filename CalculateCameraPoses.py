@@ -330,7 +330,6 @@ def correct_objs(): #  just for testing
     save_objects("after_floor_",objs)
 
 if __name__ == "__main__":
-if __name__ == "__main__":
     get_points()
     calculate_extrinsics()
     # global_camera_poses, camera_count = get_extrinsics()

@@ -3,7 +3,7 @@ import time
 import threading
 import PySpin
 import cv2
-from lib.ImageOperations import image_filter, find_points
+from lib.ImageOperations import image_filter, _find_dot
 import numpy as np
 
 
@@ -96,10 +96,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
-                    image, detected_points = _find_dot(images[i][j])
-                    # h,w = image_data.shape
-                    # print(f"Image shape: {image_data.shape}")
-                    image_data_new = find_points(image_data)
+                    image, detected_points = _find_dot(image_data)
                     
                     # Calculate and display FPS every second
                     frame_count += 1
