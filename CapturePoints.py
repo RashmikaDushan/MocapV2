@@ -53,36 +53,36 @@ def get_pose_images(preview=False,debug=False):
     print("Camera count:", camera_count)
     print("Images shape",images.shape)
 
-# def get_floor_images(preview=False,debug=False):
-#     '''output images shape: (camera_count, 1, height, width, channels)
-#     no prerequisites needed'''
-#     global images
-#     global image_count
-#     global camera_count
-#     images = []
+def get_floor_images(preview=False,debug=False):
+    '''output images shape: (camera_count, 1, height, width, channels)
+    no prerequisites needed'''
+    global images
+    global image_count
+    global camera_count
+    images = []
 
-#     image_names = sorted(glob.glob(f'./get_floor_images/test/*.jpg'))
-#     image_count = 1
-#     camera_count = len(image_names)
-#     if debug:
-#         print(image_names)
-#     for fname in image_names:
-#         print(fname)
-#         img = cv.imread(fname)
-#         img = image_filter(img)
-#         if preview:
-#             cv.imshow(f'{fname}',img)
-#             key = cv.waitKey(0) & 0xFF
-#             if key == ord('q'):
-#                 print("Exiting...")
-#                 cv.destroyAllWindows()
-#                 quit()
-#         images.append([img]) 
+    image_names = sorted(glob.glob(f'./get_floor_images/test/*.jpg'))
+    image_count = 1
+    camera_count = len(image_names)
+    if debug:
+        print(image_names)
+    for fname in image_names:
+        print(fname)
+        img = cv.imread(fname)
+        img = image_filter(img)
+        if preview:
+            cv.imshow(f'{fname}',img)
+            key = cv.waitKey(0) & 0xFF
+            if key == ord('q'):
+                print("Exiting...")
+                cv.destroyAllWindows()
+                quit()
+        images.append([img]) 
 
-#     images = np.array(images)
-#     print("Point count:", image_count)
-#     print("Camera count:", camera_count)
-#     print("Images shape",images.shape)
+    images = np.array(images)
+    print("Point count:", image_count)
+    print("Camera count:", camera_count)
+    print("Images shape",images.shape)
 
 def image_filter(image,camera_number=0):
     '''output: filtered image
