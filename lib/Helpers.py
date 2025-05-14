@@ -4,6 +4,7 @@ import json
 import cv2 as cv
 from scipy.spatial.transform import Rotation
 import copy
+import copy
 
 camera_params = None
 camera_params_path = "./jsons/camera-params-in.json"
@@ -34,6 +35,7 @@ def read_camera_params():
         with open(camera_params_path, "r") as file:
             camera_params = json.load(file)
             camera_params = np.array(camera_params)
+            print("Camera params loaded")
             print("Camera params loaded")
 
 

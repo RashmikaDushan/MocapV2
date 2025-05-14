@@ -19,6 +19,9 @@ camera_params = json.load(camera_params_file)
 def get_pose_images(preview=False,debug=False):
     '''output images shape: (camera_count, image_count, height, width, channels)
     no prerequisites needed'''
+def get_pose_images(preview=False,debug=False):
+    '''output images shape: (camera_count, image_count, height, width, channels)
+    no prerequisites needed'''
     global images
     global image_count
     global camera_count
@@ -189,6 +192,41 @@ def capture_pose_points(preview=False,debug=False):
 
     cv.destroyAllWindows()
 
+def capture_floor_points(preview=False,debug=False):
+    '''output: calculated points
+    prerequisites needed: images shape: (camera_count, 1, height, width, channels)'''
+    global image_count
+    global images
+
+    if preview:
+        print("Press 'space' to take a picture and 'q' to quit.")
+
+    proccessed_images = []
+    calculated_points = []
+    for i in range(0, camera_count):
+        image, image_point = _find_dot(images[i][0])
+        calculated_points.append(image_point)
+        proccessed_images.append(image)
+
+    if preview:
+        top = np.hstack([proccessed_images[0], np.hstack([proccessed_images[1], proccessed_images[2]])])
+        bottom = np.hstack([proccessed_images[3], np.hstack([proccessed_images[4], proccessed_images[5]])])
+        image = np.vstack([top, bottom])
+        cv.imshow("Image", image)
+        key = cv.waitKey(0) & 0xFF
+        if key == ord(' '):
+            print("Getting points...")
+
+        if key == ord('q'):
+            print("Exiting...")
+            cv.destroyAllWindows()
+            quit()
+    
+    if debug:
+        print("Image points for camera", i, ":", image_points)
+
+    cv.destroyAllWindows()
+    return np.array(calculated_points)
 def capture_floor_points(preview=False,debug=False):
     '''output: calculated points
     prerequisites needed: images shape: (camera_count, 1, height, width, channels)'''
