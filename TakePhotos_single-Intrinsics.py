@@ -3,8 +3,6 @@ import time
 import threading
 import PySpin
 import cv2
-from lib.ImageOperations import image_filter, find_points
-import numpy as np
 
 
 running = threading.Event()

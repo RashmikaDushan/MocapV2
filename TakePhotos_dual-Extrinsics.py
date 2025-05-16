@@ -3,8 +3,6 @@ import time
 import threading
 import PySpin
 import cv2
-from lib.ImageOperations import image_filter, find_points
-import numpy as np
 
 
 running = threading.Event()
@@ -12,7 +10,7 @@ running.set()
 take_photo = threading.Event()
 take_photo.clear()
 
-def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,floor=False):
+def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped=True,floor=False):
     """
     This function continuously acquires images from a device and displays them using OpenCV.
     
@@ -99,7 +97,9 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,fl
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
                     if flipped:
-                        image_data = cv2.flip(image_data, 1)
+                        image_data_flipped = cv2.flip(image_data, 1)
+                    else:
+                        image_data_flipped = image_data
                     
                     # Calculate and display FPS every second
                     frame_count += 1
@@ -110,11 +110,11 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,fl
                         start_time = end_time
                     
                     # Add FPS text to the image
-                    cv2.putText(image_data, f"FPS: {fps:.1f}", (10, 30), 
+                    cv2.putText(image_data_flipped, f"FPS: {fps:.1f}", (10, 30), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
                     
                     # Display the image using OpenCV (much faster than matplotlib)
-                    cv2.imshow(window_name, image_data)
+                    cv2.imshow(window_name, image_data_flipped)
                     
                     # Process any OpenCV GUI events (like window closing)
                     key = cv2.waitKey(1)
@@ -125,9 +125,9 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,fl
                     if key == ord('s'):  # 's' key for saving image
                         take_photo.set()
                     if take_photo.is_set():
-                        print('Taking photo...')
+                        print(f'Taking photo...{cam_num}')
                         if floor:
-                            image_name = f'./floor_images/cam{cam_num}/{int(time.time())}.png'
+                            image_name = f'./tracking/cam{cam_num}/{int(time.time())}.png'
                         else:
                             image_name = f'./captured_images/cam{cam_num}/{int(time.time())}.png'
                         cv2.imwrite(image_name, image_data)
@@ -152,7 +152,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,fl
     return True
 
 
-def run_single_camera(cam,cam_num=0,flipped=False):
+def run_single_camera(cam,cam_num=0,flipped=True):
     """
     Camera initialization and execution function.
     
@@ -170,7 +170,7 @@ def run_single_camera(cam,cam_num=0,flipped=False):
         nodemap = cam.GetNodeMap()
             
         # Run acquisition and display function
-        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped)
+        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,floor=True)
         
         # Deinitialize camera
         cam.DeInit()
@@ -241,6 +241,6 @@ def main(auto=False):
 
 
 if __name__ == '__main__':
-    success = main(auto=False)
+    success = main(auto=True)
     print('Exiting...')
     sys.exit(0 if success else 1)

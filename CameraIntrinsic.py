@@ -17,6 +17,8 @@ prev_img_shape = None
 image_names = glob.glob(f'./{cam_images_folder_name}/*.png')
 
 print(image_names)
+window_name = "Checkerboad"
+window = cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
 for fname in image_names:
     print(fname)
@@ -31,7 +33,7 @@ for fname in image_names:
         imgpoints.append(corners2)
         img = cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
      
-    cv2.imshow('img',img)
+    cv2.imshow(window_name,img)
 
     key = cv2.waitKey(0) & 0xFF
 

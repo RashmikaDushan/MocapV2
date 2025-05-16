@@ -3,14 +3,16 @@ import time
 import threading
 import PySpin
 import cv2
-from lib.ImageOperations import image_filter, _find_dot
-import numpy as np
+from lib.ImageOperations import _find_dot
+from lib.Helpers import find_point_correspondance_and_object_points,get_extrinsics
+import queue
 
 
 running = threading.Event()
 running.set()
+camera_poses, camera_count = get_extrinsics()
 
-def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
+def track_points(cam, nodemap, nodemap_tldevice,data_queue:queue.Queue,preview=False):
     """
     This function continuously acquires images from a device and displays them using OpenCV.
     
@@ -96,7 +98,15 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
-                    image, detected_points = _find_dot(image_data)
+                    image, detected_points = _find_dot(image_data,print_location=True)
+
+                    try:
+                        # Drain the queue to get the most recent data
+                        if data_queue.full():
+                            data_queue.get_nowait()
+                        data_queue.put_nowait(detected_points)
+                    except queue.Empty:
+                        print("Queue is full")
                     
                     # Calculate and display FPS every second
                     frame_count += 1
@@ -119,7 +129,8 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                         print('ESC pressed. Exiting...')
                         running.clear()
                         break
-                
+
+                    
                 # Release the image to avoid buffer filling
                 image_result.Release()
                 
@@ -138,8 +149,27 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
         
     return True
 
+def track(data_queue1:queue.Queue,data_queue2:queue.Queue):
+    global camera_poses
+    print(camera_poses)
+    print("Tracking started")
+    while True:
+        try:
+            if not (data_queue1.empty() or data_queue2.empty()):
+                data1 = data_queue1.get_nowait()
+                data2 = data_queue2.get_nowait()
+                image_points = [data1,data2]
+                object_points = find_point_correspondance_and_object_points(image_points,camera_poses)
+                print(f"Object Points: {object_points}")
+                print(f"Data1: {data1}")
+                print(f"Data2: {data2}")
+        except queue.Empty:
+            print("Queue is empty")
+            
+        time.sleep(0.01)
+        #send 3d points
 
-def run_single_camera(cam):
+def run_single_camera(cam,data_queue):
     """
     Camera initialization and execution function.
     
@@ -192,7 +222,7 @@ def run_single_camera(cam):
             print(f'Notice: GigE optimization not applicable - {ex}')
             
         # Run acquisition and display function
-        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice)
+        result = track_points(cam, nodemap, nodemap_tldevice,data_queue=data_queue,preview=False)
         
         # Deinitialize camera
         cam.DeInit()
@@ -229,15 +259,20 @@ def main():
             input('Press Enter to exit...')
             sys.exit(0)
             return False
-            
-        camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],))
+        
+        data_queue1 = queue.Queue(maxsize=10)
+        data_queue2 = queue.Queue(maxsize=10)
+
+        process_thread = threading.Thread(target=track, args=(data_queue1,data_queue2))
+        process_thread.start()        
+        camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],data_queue1))
         camera1_display.start()
-        camera2_display = threading.Thread(target=run_single_camera, args=(cam_list[1],))
+        camera2_display = threading.Thread(target=run_single_camera, args=(cam_list[1],data_queue2))
         camera2_display.start()
 
         while running.is_set():
             time.sleep(0.1)
-            print('Running...')
+            # print('Running...')
         
         time.sleep(1)
         print('Stopping cameras...')
@@ -261,3 +296,4 @@ if __name__ == '__main__':
     success = main()
     print('Exiting...')
     sys.exit(0 if success else 1)
+    quit()

@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-from lib.Helpers import get_extrinsics, triangulate_points, calculate_reprojection_errors, bundle_adjustment, find_point_correspondance_and_object_points
+from lib.Helpers import get_extrinsics, triangulate_points, calculate_reprojection_errors, bundle_adjustment, find_point_correspondance_and_object_points,get_extrinsics
 from CapturePoints import get_floor_images, capture_floor_points
 import json
 from itertools import combinations
@@ -131,16 +131,6 @@ def save_extrinsics(prefix=""):
         json.dump(extrinsics, outfile)
 
     print("Extrinsics saved to", extrinsics_filename)
-
-def get_extrinsics():
-    global global_camera_poses
-    global camera_count
-    with open("./jsons/after_ba_extrinsics.json") as file:
-        global_camera_poses = json.load(file)
-        for i in range(0, len(global_camera_poses)):
-            global_camera_poses[i]["R"] = np.array(global_camera_poses[i]["R"])
-            global_camera_poses[i]["t"] = np.array(global_camera_poses[i]["t"])
-    camera_count = len(global_camera_poses)
 
 def save_objects(prefix="",object_points=None):
     '''Save object (which were used to calculate the camera poses) to a json'''
@@ -323,7 +313,7 @@ def correct_objs(): #  just for testing
         objs = np.array(objs)
     
     for i in range(len(objs)):
-        RT = np.eye(4)
+        RT = np.eye(4) 
         RT[:3,3] = objs[i]-origin
         RT = R.T @ RT
         objs[i] = RT[:3,3]
@@ -333,9 +323,12 @@ if __name__ == "__main__":
     get_points()
     calculate_extrinsics()
     # global_camera_poses, camera_count = get_extrinsics()
-    # get_floor_images()
-    # points = capture_floor_points()
-    # # points = points.transpose(1,0,2)
+    images = get_floor_images()
+    images = np.array(images)
+    print("images: ", images.shape)
+    points = capture_floor_points(preview=True,images=images)
+    print(points)
+    # points = points.transpose(1,0,2)
     # start_time = time.time()
     # print(points.shape)
     # objs = find_point_correspondance_and_object_points(points, global_camera_poses)

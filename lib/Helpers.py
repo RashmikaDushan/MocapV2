@@ -35,8 +35,10 @@ def read_camera_params():
         with open(camera_params_path, "r") as file:
             camera_params = json.load(file)
             camera_params = np.array(camera_params)
+            # print("camera params",camera_params)
             print("Camera params loaded")
             print("Camera params loaded")
+            return camera_params
 
 
 def triangulate_point(image_points, camera_poses):
@@ -136,25 +138,24 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
     
     return errors.mean()
 
+def params_to_camera_poses(params,num_cameras=2):
+    camera_poses = [{
+        "R": np.eye(3),
+        "t": np.array([0,0,0], dtype=np.float32)
+    }]
+    for i in range(0, num_cameras-1):
+        camera_poses.append({
+            "R": Rotation.as_matrix(Rotation.from_rotvec(params[i*6 : i*6 + 3])),
+            "t": params[i*6 + 3 : i*6 + 6]
+        })
+
+    return camera_poses
 
 def bundle_adjustment(image_points, camera_poses):
     num_cameras = len(camera_poses)
 
-    def params_to_camera_poses(params):
-        camera_poses = [{
-            "R": np.eye(3),
-            "t": np.array([0,0,0], dtype=np.float32)
-        }]
-        for i in range(0, num_cameras-1):
-            camera_poses.append({
-                "R": Rotation.as_matrix(Rotation.from_rotvec(params[i*6 : i*6 + 3])),
-                "t": params[i*6 + 3 : i*6 + 6]
-            })
-
-        return camera_poses
-
     def residual_function(params):
-        camera_poses = params_to_camera_poses(params)
+        camera_poses = params_to_camera_poses(params,2)
         object_points = triangulate_points(image_points, camera_poses)
         errors = calculate_reprojection_errors(image_points, object_points, camera_poses)
         errors = errors.astype(np.float32)
@@ -261,4 +262,13 @@ def find_point_correspondance_and_object_points(image_points, camera_poses):
     selected_object_points = [object_points[i] for i in sorted_errors]
     return np.array(object_points)
 
-
+def get_extrinsics():
+    global global_camera_poses
+    global camera_count
+    with open("./jsons/after_ba_extrinsics.json") as file:
+        global_camera_poses = json.load(file)
+        for i in range(0, len(global_camera_poses)):
+            global_camera_poses[i]["R"] = np.array(global_camera_poses[i]["R"])
+            global_camera_poses[i]["t"] = np.array(global_camera_poses[i]["t"])
+    camera_count = len(global_camera_poses)
+    return global_camera_poses,camera_count
