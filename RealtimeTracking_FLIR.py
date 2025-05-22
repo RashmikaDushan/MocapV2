@@ -10,7 +10,7 @@ import queue
 
 running = threading.Event()
 running.set()
-camera_poses, camera_count = get_extrinsics()
+camera_poses, camera_count = get_extrinsics("./jsons/after_floor_extrinsics.json")
 
 def track_points(cam, nodemap, nodemap_tldevice,data_queue:queue.Queue,preview=False):
     """
@@ -64,20 +64,20 @@ def track_points(cam, nodemap, nodemap_tldevice,data_queue:queue.Queue,preview=F
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
         
         # Configure exposure
-        try:
-            # Set exposure auto to off for manual control
-            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
-            if PySpin.IsWritable(node_exposure_auto):
-                node_exposure_auto.SetIntValue(node_exposure_auto.GetEntryByName('Off').GetValue())
+        # try:
+        #     # Set exposure auto to off for manual control
+        #     node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+        #     if PySpin.IsWritable(node_exposure_auto):
+        #         node_exposure_auto.SetIntValue(node_exposure_auto.GetEntryByName('Off').GetValue())
                 
-                # Set exposure time manually (in microseconds)
-                node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
-                if PySpin.IsWritable(node_exposure_time):
-                    exposure_time = 5000.0  # 5ms exposure, adjust as needed
-                    node_exposure_time.SetValue(exposure_time)
-                    print(f'Exposure time set to {exposure_time} us')
-        except PySpin.SpinnakerException as ex:
-            print(f'Error setting exposure: {ex}')
+        #         # Set exposure time manually (in microseconds)
+        #         node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
+        #         if PySpin.IsWritable(node_exposure_time):
+        #             exposure_time = 5000.0  # 5ms exposure, adjust as needed
+        #             node_exposure_time.SetValue(exposure_time)
+        #             print(f'Exposure time set to {exposure_time} us')
+        # except PySpin.SpinnakerException as ex:
+        #     print(f'Error setting exposure: {ex}')
         
         # Begin acquiring images
         cam.BeginAcquisition()
@@ -98,7 +98,9 @@ def track_points(cam, nodemap, nodemap_tldevice,data_queue:queue.Queue,preview=F
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
-                    image, detected_points = _find_dot(image_data,print_location=True)
+                    image_data = cv2.cvtColor(image_data, cv2.COLOR_BAYER_GR2BGR)
+                    image_data = cv2.cvtColor(image_data, cv2.COLOR_BGR2GRAY)
+                    image_data, detected_points = _find_dot(image_data,print_location=True)
 
                     try:
                         # Drain the queue to get the most recent data
@@ -159,10 +161,11 @@ def track(data_queue1:queue.Queue,data_queue2:queue.Queue):
                 data1 = data_queue1.get_nowait()
                 data2 = data_queue2.get_nowait()
                 image_points = [data1,data2]
-                object_points = find_point_correspondance_and_object_points(image_points,camera_poses)
+                object_points,image_p = find_point_correspondance_and_object_points(image_points,camera_poses,4)
                 print(f"Object Points: {object_points}")
-                print(f"Data1: {data1}")
-                print(f"Data2: {data2}")
+                print(f"Image Points: {image_p}")
+                # print(f"Data1: {data1}")
+                # print(f"Data2: {data2}")
         except queue.Empty:
             print("Queue is empty")
             
@@ -185,7 +188,9 @@ def run_single_camera(cam,data_queue):
         # Retrieve nodemap
         nodemap_tldevice = cam.GetTLDeviceNodeMap()
         nodemap = cam.GetNodeMap()
-        
+        cam.ExposureAuto.SetValue(PySpin.ExposureAuto_Off)
+        exposure_time = 5000  # 1 ms
+        cam.ExposureTime.SetValue(exposure_time)
         # Performance optimization: Set packet size to max for GigE cameras
         try:
             # Check if this is a GigE camera

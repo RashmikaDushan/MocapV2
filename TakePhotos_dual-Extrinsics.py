@@ -96,6 +96,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped=Tr
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
+                    image_data = cv2.cvtColor(image_data, cv2.COLOR_BAYER_GR2BGR)  # Convert to BGR
                     if flipped:
                         image_data_flipped = cv2.flip(image_data, 1)
                     else:
@@ -110,8 +111,8 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped=Tr
                         start_time = end_time
                     
                     # Add FPS text to the image
-                    cv2.putText(image_data_flipped, f"FPS: {fps:.1f}", (10, 30), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+                    cv2.putText(image_data_flipped, f"FPS: {fps:.1f}", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
                     
                     # Display the image using OpenCV (much faster than matplotlib)
                     cv2.imshow(window_name, image_data_flipped)
@@ -152,7 +153,7 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped=Tr
     return True
 
 
-def run_single_camera(cam,cam_num=0,flipped=True):
+def run_single_camera(cam,cam_num=0,flipped=True,floor=True):
     """
     Camera initialization and execution function.
     
@@ -170,7 +171,7 @@ def run_single_camera(cam,cam_num=0,flipped=True):
         nodemap = cam.GetNodeMap()
             
         # Run acquisition and display function
-        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,floor=True)
+        result = acquire_and_display_images(cam, nodemap, nodemap_tldevice,cam_num,flipped,floor)
         
         # Deinitialize camera
         cam.DeInit()
@@ -181,7 +182,7 @@ def run_single_camera(cam,cam_num=0,flipped=True):
         return False
 
 
-def main(auto=False):
+def main(auto=False,floor=False,flipped=True):
     """
     Main function.
     """
@@ -208,18 +209,18 @@ def main(auto=False):
             sys.exit(0)
             return False
             
-        camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],0,))
+        camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],0,flipped,floor,))
         camera1_display.start()
-        camera2_display = threading.Thread(target=run_single_camera, args=(cam_list[1],1,))
+        camera2_display = threading.Thread(target=run_single_camera, args=(cam_list[1],1,flipped,floor,))
         camera2_display.start()
 
-        time.sleep(5)
+        time.sleep(8)
 
         while running.is_set():
-            time.sleep(1)
+            time.sleep(0.5)
             if auto:
                 take_photo.set()
-                time.sleep(1)
+                time.sleep(0.5)
                 take_photo.clear()
         
         time.sleep(1)
@@ -241,6 +242,6 @@ def main(auto=False):
 
 
 if __name__ == '__main__':
-    success = main(auto=True)
+    success = main(auto=False,floor=False,flipped=True)
     print('Exiting...')
     sys.exit(0 if success else 1)

@@ -12,11 +12,13 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
     """
     This function continuously acquires images from a device and displays them using OpenCV.
     
-    :param cam: Camera to acquire images from.
-    :param nodemap: Device nodemap.
-    :param nodemap_tldevice: Transport layer device nodemap.
-    :return: True if successful, False otherwise.
-    :rtype: bool
+    Parameters:
+        cam (CameraPtr): Camera to acquire images from.
+        nodemap (INodeMap): Device nodemap.
+        nodemap_tldevice (INodeMap): Transport layer device nodemap.
+        
+    Returns:
+        bool: True if successful, False otherwise.
     """
     global running
     try:
@@ -94,7 +96,8 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                 if not image_result.IsIncomplete():
                     # Get image data as numpy array and optimize display
                     image_data = image_result.GetNDArray().copy()
-                    image_data = cv2.flip(image_data, 1)  # Flip vertically
+                    image_data = cv2.cvtColor(image_data, cv2.COLOR_BAYER_GR2BGR)  # Convert to BGR
+                    flipped_image_data = cv2.flip(image_data, 1)  # Flip vertically
                     
                     # Calculate and display FPS every second
                     frame_count += 1
@@ -105,13 +108,13 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
                         start_time = end_time
                     
                     # Add FPS text to the image
-                    cv2.putText(image_data, f"FPS: {fps:.1f}", (10, 30), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+                    cv2.putText(flipped_image_data, f"FPS: {fps:.1f}", (10, 30), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
                     
-                    # Display the image using OpenCV (much faster than matplotlib)
-                    cv2.imshow(window_name, image_data)
+                    # Display the image using OpenCV
+                    cv2.imshow(window_name, flipped_image_data)
                     
-                    # Process any OpenCV GUI events (like window closing)
+                    # Process any OpenCV GUI events
                     key = cv2.waitKey(1)
                     if key == 27:  # ESC key
                         print('ESC pressed. Exiting...')
@@ -144,11 +147,12 @@ def acquire_and_display_images(cam, nodemap, nodemap_tldevice):
 def run_single_camera(cam):
     """
     Camera initialization and execution function.
-    
-    :param cam: Camera to run on.
-    :type cam: CameraPtr
-    :return: True if successful, False otherwise.
-    :rtype: bool
+
+    Parameters:
+        cam (CameraPtr): Camera to run on.
+
+    Returns:
+        bool: True if successful, False otherwise.
     """
     try:
         # Initialize camera
@@ -179,8 +183,6 @@ def main():
         # Get system instance
         system = PySpin.System.GetInstance()
         
-        # Print system info
-        # version = system.GetLibraryVersion()
         print(f'MoCap v2.0')
         
         # Get camera list

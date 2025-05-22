@@ -37,7 +37,6 @@ def read_camera_params():
             camera_params = np.array(camera_params)
             # print("camera params",camera_params)
             print("Camera params loaded")
-            print("Camera params loaded")
             return camera_params
 
 
@@ -88,9 +87,14 @@ def triangulate_point(image_points, camera_poses):
 def triangulate_points(image_points, camera_poses):
     '''image_points shape = [obj points,camera_count,2]'''
     object_points = []
+    # print(image_points)
     for image_points_i in image_points:
-        object_point = triangulate_point(image_points_i, camera_poses)
-        object_points.append(object_point)
+        
+        if not any(np.all(point == [None, None]) for point in image_points_i):
+            # print("image_points", image_points_i)
+            object_point = triangulate_point(image_points_i, camera_poses)
+            # print("object_point", object_point)
+            object_points.append(object_point)
     
     return np.array(object_points)
 
@@ -171,10 +175,10 @@ def bundle_adjustment(image_points, camera_poses):
     
     return camera_poses
 
-def find_point_correspondance_and_object_points(image_points, camera_poses):
+def find_point_correspondance_and_object_points(image_points, camera_poses,obj_count=0,debug=False):
     '''image_points shape = [camera_count, obj points, 2]'''
     global camera_params
-    obj_count = len(image_points[0])
+    # obj_count = len(image_points[0])
     read_camera_params()
 
     for image_points_i in image_points:
@@ -212,7 +216,8 @@ def find_point_correspondance_and_object_points(image_points, camera_poses):
             if len(points) != 0:
                 distances_to_line = np.abs(a*points[:,0] + b*points[:,1] + c) / np.sqrt(a**2 + b**2)
 
-            possible_matches = points[distances_to_line < 5].copy()
+            distance_cutoff = 10
+            possible_matches = points[distances_to_line < distance_cutoff].copy()
 
             # Commenting out this code produces more points, but more garbage points too
             # delete closest match from future consideration
@@ -220,7 +225,7 @@ def find_point_correspondance_and_object_points(image_points, camera_poses):
             #     points = np.delete(points, np.argmin(distances_to_line), axis=0)
 
             # sort possible matches from smallest to largest
-            distances_to_line = distances_to_line[distances_to_line < 5]
+            distances_to_line = distances_to_line[distances_to_line < distance_cutoff]
             possible_matches_sorter = distances_to_line.argsort()
             possible_matches = possible_matches[possible_matches_sorter]
     
@@ -247,25 +252,37 @@ def find_point_correspondance_and_object_points(image_points, camera_poses):
 
     object_points = []
     errors = []
+    image_points_all = []
+    if debug:
+        print("Correspondances: ", correspondances)
     for image_points in correspondances:
+        
         object_points_i = triangulate_points(image_points, camera_poses)
+        # if debug:
+        #     print("Corres: ",image_points)
+        #     print("Object points: ", object_points_i)
 
         if np.all(object_points_i == None):
             continue
 
+        image_points_all.append(image_points[0])
         errors_i = calculate_reprojection_errors(image_points, object_points_i, camera_poses)
+        # print("Error is: ", errors_i)
 
-        object_points.append(object_points_i[np.argmin(errors_i)])
-        errors.append(np.min(errors_i))
+        object_points.append(object_points_i[0])
+        errors.append(errors_i.mean(axis=0))
     sorted_indices = np.argsort(errors)
-    sorted_errors = sorted_indices[:obj_count]
+    if not obj_count>len(sorted_indices):
+        sorted_errors = sorted_indices[:obj_count+1]
+    else:
+        sorted_errors = sorted_indices
     selected_object_points = [object_points[i] for i in sorted_errors]
-    return np.array(object_points)
+    return np.array(selected_object_points) , np.array(image_points_all)
 
-def get_extrinsics():
+def get_extrinsics(path="./jsons/after_ba_extrinsics.json"):
     global global_camera_poses
     global camera_count
-    with open("./jsons/after_ba_extrinsics.json") as file:
+    with open(path) as file:
         global_camera_poses = json.load(file)
         for i in range(0, len(global_camera_poses)):
             global_camera_poses[i]["R"] = np.array(global_camera_poses[i]["R"])

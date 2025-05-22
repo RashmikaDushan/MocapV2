@@ -3,35 +3,36 @@ import numpy as np
 import os
 import glob
 from lib.ImageOperations import _find_dot
+from lib.Helpers import get_extrinsics
 import json
 
-image_points = [] # format [[camera1_points], [camera1_points], ...] -> timestamp1 = [timestamp1, timestamp2, ...]
-images = []
-image_count = 0
-camera_count = 0
-
-intrinsics_json = "./jsons/camera-params-in.json"
 points_json = "./jsons/image_points.json"
 
+intrinsics_json = "./jsons/camera-params-in.json"
 camera_params_file = open(intrinsics_json)
 camera_params = json.load(camera_params_file)
 
-def get_pose_images(preview=False,debug=False):
-    '''output images shape: (camera_count, image_count, height, width, channels)
-    no prerequisites needed'''
-def get_pose_images(preview=False,debug=False):
-    '''output images shape: (camera_count, image_count, height, width, channels)
-    no prerequisites needed'''
-    global images
-    global image_count
-    global camera_count
-    images = []
+camera_poses, _ = get_extrinsics()
 
-    img_folder_paths = sorted([f"captured_images/{i}" for i in os.listdir("captured_images") if i.startswith('cam')])
+
+def read_images(path,preview=False,debug=False):
+    '''Read images in folders
+    
+    Parameters:
+        preview (bool): If True, show the images in a window.
+        debug (bool): If True, print debug information.
+
+    Returns:
+        images (numpy array): [[camera1_images], [camera2_images], ...]
+    '''
+    images = []
+    print(path)
+    img_folder_paths = sorted([f"{path}/{i}" for i in os.listdir(f"{path}") if i.startswith('cam')])
     camera_count = len(img_folder_paths)
     if debug:
         print(img_folder_paths)
 
+    window = cv.namedWindow(f'Preview', cv.WINDOW_NORMAL)
     for img_folder_path in img_folder_paths:
         image_names = sorted(glob.glob(f'./{img_folder_path}/*.png'))
         image_count = len(image_names)
@@ -40,66 +41,44 @@ def get_pose_images(preview=False,debug=False):
         imgs = []
         for fname in image_names:
             img = cv.imread(fname)
-            img = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-            img = cv.undistort(img, np.array(camera_params[0]["intrinsic_matrix"]), np.array(camera_params[0]["distortion_coef"]))
+            gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)
             if preview:
-                cv.imshow(f'{fname}',img)
+                cv.imshow(f'Preview',gray)
                 key = cv.waitKey(0) & 0xFF
                 if key == ord('q'):
                     print("Exiting...")
                     cv.destroyAllWindows()
                     quit()
-            imgs.append(img)
+            imgs.append(gray)
         images.append(imgs)
 
     images = np.array(images)
-    print("Point count:", image_count)
-    print("Camera count:", camera_count)
-    print("Images shape",images.shape)
+    if debug:
+        print("Point count:", image_count)
+        print("Camera count:", camera_count)
+        print("Images shape",images.shape)
 
-def  get_floor_images(preview=False,debug=False):
-    '''output images shape: (camera_count, 1, height, width, channels)
-    no prerequisites needed'''
-    global images
-    global image_count
-    global camera_count
-    images = []
-
-    img_folder_paths = sorted([f"floor_images/{i}" for i in os.listdir("floor_images") if i.startswith('cam')])
-    for img_folder_path in img_folder_paths:
-        image_names = sorted(glob.glob(f'./{img_folder_path}/*.png'))
-        image_count = len(image_names)
-        if debug:
-            print(image_names)
-        imgs = []
-        window = cv.namedWindow(f'Preview', cv.WINDOW_NORMAL)
-        for fname in image_names:
-            img = cv.imread(fname)
-            img = cv.undistort(img, np.array(camera_params[0]["intrinsic_matrix"]), np.array(camera_params[0]["distortion_coef"]))
-            if preview:
-                cv.imshow("Preview",img)
-                key = cv.waitKey(0) & 0xFF
-                if key == ord('q'):
-                    print("Exiting...")
-                    cv.destroyAllWindows()
-                    quit()
-            imgs.append(img)
-        images.append(imgs)
     return images
 
-    images = np.array(images)
-    print("Point count:", image_count)
-    print("Camera count:", camera_count)
-    print("Images shape",images.shape)
 
-def capture_pose_points(preview=False,debug=False):
+
+def capture_pose_points(images,preview=False,debug=False):
     '''output: saves points to points_json
-    prerequisites needed: images shape: (camera_count, image_count, height, width, channels)'''
-    global image_points
-    global image_count
-    global images
+    prerequisites needed: images shape: (camera_count, image_count, height, width, channels)
+    
+    Parameters:
+        images (numpy array) : Images for callibration in the shape of (camera_count, image_count, height, width, channels)
+        preview (bool) : If True, show the images in a window.
+        debug (bool) : If True, print details in the terminal.
+
+    Returns:
+        image_points (numpy array) : [[camera1_points], [camera2_points], ...] -> camera1_points = [timestamp1, timestamp2, ...]
+    '''
+
 
     image_points = []
+    camera_count = len(images)
+    image_count = len(images[0])
     cv.namedWindow(f'Preview', cv.WINDOW_NORMAL)
 
     # Global variables for mouse callback function
@@ -191,66 +170,36 @@ def capture_pose_points(preview=False,debug=False):
                 image_points.append(calculated_points.tolist())
             
             if debug:
-                print("Image points for capture", i, ":", image_points) 
+                print("Image points for timestamp", j+1, ":", calculated_points) 
+
+    cv.destroyAllWindows()
+    return image_points
+
+
+def save_points(image_points):
+    """ Save image points to a json"""
+    global points_json
     with open(points_json, "w") as file:
         json.dump(image_points, file)
 
-    cv.destroyAllWindows()
 
-# def capture_floor_points(preview=False,debug=False):
-#     '''output: calculated points
-#     prerequisites needed: images shape: (camera_count, 1, height, width, channels)'''
-#     global image_count
-#     global images
-
-#     if preview:
-#         print("Press 'space' to take a picture and 'q' to quit.")
-
-#     proccessed_images = []
-#     calculated_points = []
-#     for i in range(0, camera_count):
-#         image, image_point = _find_dot(images[i][0])
-#         calculated_points.append(image_point)
-#         proccessed_images.append(image)
-
-#     if preview:
-#         top = np.hstack([proccessed_images[0], np.hstack([proccessed_images[1], proccessed_images[2]])])
-#         bottom = np.hstack([proccessed_images[3], np.hstack([proccessed_images[4], proccessed_images[5]])])
-#         image = np.vstack([top, bottom])
-#         cv.imshow("Image", image)
-#         key = cv.waitKey(0) & 0xFF
-#         if key == ord(' '):
-#             print("Getting points...")
-
-#         if key == ord('q'):
-#             print("Exiting...")
-#             cv.destroyAllWindows()
-#             quit()
-    
-#     if debug:
-#         print("Image points for camera", i, ":", image_points)
-
-#     cv.destroyAllWindows()
-#     return np.array(calculated_points)
-
-def capture_floor_points(preview=False,debug=False,images=None):
+def capture_floor_points(preview=False,debug=False,images=None,camera_count=2):
     '''output: calculated points
     prerequisites needed: images shape: (camera_count, 1, height, width, channels)'''
-
     if preview:
         print("Press 'space' to take a picture and 'q' to quit.")
 
     proccessed_images = []
     calculated_points = []
     for i in range(0, camera_count):
-        image, image_points = _find_dot(images[i][0])
+        image, image_points = _find_dot(images[i][0],print_location=True)
         calculated_points.append(image_points)
         proccessed_images.append(image)
-
+    
+    window = cv.namedWindow(f'Preview', cv.WINDOW_NORMAL)
     if preview:
-        print("maijija",len(proccessed_images))
         image = np.vstack([proccessed_images[0],proccessed_images[1]])
-        cv.imshow("Image", image)
+        cv.imshow("Preview", image)
         key = cv.waitKey(0) & 0xFF
         if key == ord(' '):
             print("Getting points...")
@@ -267,5 +216,7 @@ def capture_floor_points(preview=False,debug=False,images=None):
     return np.array(calculated_points)
 
 if __name__ == "__main__":
-    get_pose_images(debug=True)
-    capture_pose_points(preview=True,debug=True)
+    images = read_images(path="captured_images",debug=True)
+    points = capture_pose_points(images,preview=True,debug=True)
+    print(points)
+    save_points(points)
