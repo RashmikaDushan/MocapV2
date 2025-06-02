@@ -77,9 +77,11 @@ def poses_to_fundamental_matrix(pose1, pose2, K1=None, K2=None):
     
     return F
 
-def get_points():
+def get_points(path=None):
     '''Read image points from json'''
-
+    global points_json
+    if path is not None:
+        points_json = path
     with open(points_json) as file:
         image_points = json.load(file)
     image_points = np.array(image_points)
@@ -171,8 +173,8 @@ def calculate_extrinsics(image_points):
         "t": np.array([[0],[0],[0]], dtype=np.float32)
     }]
 
-    image1 = cv.imread("./captured_images/cam0/1747818377.png")
-    image2 = cv.imread("./captured_images/cam1/1747818356.png")
+    image1 = cv.imread("./captured_images/cam0/1748511905.png")
+    image2 = cv.imread("./captured_images/cam1/1748511905.png")
 
     camera_poses = [{
         "R": np.eye(3),
@@ -210,10 +212,12 @@ def calculate_extrinsics(image_points):
             p = np.transpose(p,[1,0,2])
             # print(p.shape)
             object_points = triangulate_points(p, np.concatenate([[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]]))
-            print(f"{i}th set: ",object_points)
             object_points_camera_coordinate_frame = np.array([possible_Rs[i].T @ object_point for object_point in object_points])
+            couples = zip(range(1,len(camera1_image_points)+1),camera1_image_points,object_points,camera2_image_points, object_points_camera_coordinate_frame)
+            for point in couples:
+                print(f"object point {point[0]}: ", point[1], point[2], point[3],point[4])
 
-            points_infront_of_camera = np.sum(object_points[:,2] < 0) + np.sum(object_points_camera_coordinate_frame[:,2] < 0)
+            points_infront_of_camera = np.sum(object_points[:,2] > 0) + np.sum(object_points_camera_coordinate_frame[:,2] > 0)
 
             if points_infront_of_camera > max_points_infront_of_camera:
                 max_points_infront_of_camera = points_infront_of_camera
@@ -369,10 +373,11 @@ def origin_and_floor():
     object_points,image_points_coupled = find_point_correspondance_and_object_points(points,global_camera_poses,4)
     print("Object points: ",object_points)
     set_origin(object_points)
+    save_extrinsics("after_origin_")
     # set_floor(object_points)
 
 if __name__ == "__main__":
     image_points = get_points()
     camera_poses =  calculate_extrinsics(image_points)
-    # origin_and_floor()
+    origin_and_floor()
     
