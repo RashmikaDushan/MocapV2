@@ -6,6 +6,8 @@ import cv2
 from lib.ImageOperations import _find_dot
 from lib.Helpers import find_point_correspondance_and_object_points,get_extrinsics
 import queue
+import socket
+import msgpack
 
 
 running = threading.Event()
@@ -151,23 +153,57 @@ def track_points(cam, nodemap, nodemap_tldevice,data_queue:queue.Queue,preview=F
         
     return True
 
-def track(data_queue1:queue.Queue,data_queue2:queue.Queue):
+
+def track(data_queue1:queue.Queue,data_queue2:queue.Queue,stream=True):
     global camera_poses
     print(camera_poses)
     print("Tracking started")
+    
+    if stream:
+        HOST = "127.0.0.1"
+        PORT = 5000
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.bind((HOST, PORT))
+        server.listen(1)
+        print("Waiting for Unity to connect...")
+        connection, _ = server.accept()
+        print("Connected!")
+    point = [0,0,0,0,0,0,0,0]
+    fps = 0
+    old_time = time.time()
+
     while True:
+        fps = time.time() - old_time
+        old_time = time.time()
+        fps = 1 / fps if fps > 0 else 0
         try:
             if not (data_queue1.empty() or data_queue2.empty()):
                 data1 = data_queue1.get_nowait()
                 data2 = data_queue2.get_nowait()
                 image_points = [data1,data2]
                 object_points,image_p = find_point_correspondance_and_object_points(image_points,camera_poses,4)
-                print(f"Object Points: {object_points}")
+                if stream:
+                    if len(object_points) > 0:
+                        point = object_points[0]
+                        point = list(point)
+                        point = [0,0,0,0] + point
+                    data = {"tracker1": point}
+                    connection.send(msgpack.packb(data, use_bin_type=True))
+                    print(f"Object Points: {point}")
+                else:
+                    print(f"Object Points: {object_points}")
                 print(f"Image Points: {image_p}")
+                print(f"FPS: {fps:.2f}")
                 # print(f"Data1: {data1}")
                 # print(f"Data2: {data2}")
         except queue.Empty:
             print("Queue is empty")
+        except ConnectionResetError:
+            while True:
+                    print("\nUnity disconnected, waiting for reconnection...")
+                    connection, _ = server.accept()
+                    print("Connected!")
+                    break
             
         time.sleep(0.01)
         #send 3d points
@@ -268,7 +304,7 @@ def main():
         data_queue1 = queue.Queue(maxsize=10)
         data_queue2 = queue.Queue(maxsize=10)
 
-        process_thread = threading.Thread(target=track, args=(data_queue1,data_queue2))
+        process_thread = threading.Thread(target=track, args=(data_queue1,data_queue2,))
         process_thread.start()        
         camera1_display = threading.Thread(target=run_single_camera, args=(cam_list[0],data_queue1))
         camera1_display.start()

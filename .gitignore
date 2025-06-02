@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 *.blend1
 mocap
+captured_images/
+checkerboard/
+tracking/

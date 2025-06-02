@@ -170,7 +170,7 @@ def capture_pose_points(images,preview=False,debug=False):
                 image_points.append(calculated_points.tolist())
             
             if debug:
-                print("Image points for timestamp", j+1, ":", calculated_points) 
+                print(f"{len(image_points)}. Image points for timestamp", j+1, ":", calculated_points) 
 
     cv.destroyAllWindows()
     return image_points
